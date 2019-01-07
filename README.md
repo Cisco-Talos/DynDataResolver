@@ -4,7 +4,7 @@ Version 0.1 alpha
 
 Tested on IDA 7.2
 
-Copyright (C) 2019 Cisco Talos
+Copyright (C) 2019 Cisco Talos  
 Autor: Holger Unterbrink (hunterbr@cisco.com)
 
 This program is free software; you can redistribute it and/or modify

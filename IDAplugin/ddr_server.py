@@ -48,15 +48,15 @@ app = flask.Flask(__name__)
 CERT_FILE   = "ddr_server.crt"
 KEY_FILE    = "ddr_server.key"
 APIKEY_FILE = "ddr_apikey.txt"
-MY_IPADDR   = "192.168.100.122"
+MY_IPADDR   = "127.0.0.1"
 MY_PORT     = "5000"
 MY_FQDN     = "malwarehost.local"
-CONFDIR		= "Z:\\malware\\tools\\DDR_Talos\\IDAplugin\\"
+CONFDIR		= "C:\\Users\\Dex Dexter\\Documents\\DDR_files\\"
 
 CFG_DYNRIO_DRRUN_X32     = "C:\\tools\\DynamoRIO-Windows-7.0.0-RC1\\bin32\\drrun.exe"
-CFG_DYNRIO_CLIENTDLL_X32 = "C:\\Users\\Dex Dexter\\documents\\visual studio 2017\\Projects\\ddr\\Release\\ddr.dll"
+CFG_DYNRIO_CLIENTDLL_X32 = "C:\\Users\\Dex Dexter\\Documents\\DDR_files\\ddr32.dll"
 CFG_DYNRIO_DRRUN_X64     = "C:\\tools\\DynamoRIO-Windows-7.0.0-RC1\\bin64\\drrun.exe" 
-CFG_DYNRIO_CLIENTDLL_X64 = "C:\\Users\\Dex Dexter\\documents\\visual studio 2017\\Projects\\ddr\\x64\\Release\\ddr.dll"
+CFG_DYNRIO_CLIENTDLL_X64 = "C:\\Users\\Dex Dexter\\Documents\\DDR_files\\ddr64.dll"
 
 tmpdir = tempfile.gettempdir()
 
@@ -235,6 +235,9 @@ def api_id():
 			else:
 				print("[ERROR] Failed to zip files")
 				exit(1)
+		else:
+			print("[ERROR] Failed to execute command. Runstatus = %s" % runstatus['status'] )
+			exit(1)
 
 	# Delete trace-only tmp. file
 	if id == 4: 
@@ -252,6 +255,9 @@ def api_id():
 
 		print("Temp. trace-only log files deleted")
 		return flask.jsonify({ "return_status" : "success" })
+
+	print("[ERROR] Invalid API call received: ID=%d" % id)
+	return flask.jsonify({ "return_status" : "failed" })
 
 
 def zip_files(filelist, zipfilename):
@@ -353,12 +359,13 @@ def runcmd(my_cmd):
 		stdout, stderr = process.communicate()
 
 		if process.returncode != 0:
-			print("Command execution failed. Error code: %d" % process.returncode)
-			cmd_ret['status'] = 'failed'
+			print("[WARNING] Command execution failed. Error code: %d" % process.returncode)
+			#cmd_ret['status'] = 'failed - return code not 0'
+
 
 		if stderr:
-			print("Command execution failed. Stderr:\n----\n%s\n----" % stderr)
-			cmd_ret['status'] = 'failed'
+			print("[WARNING] Command execution failed. Stderr:\n----\n%s\n----" % stderr)
+			#cmd_ret['status'] = 'failed - stderr set'
 
 		if stdout:
 			print("Command execution stdout:\n----\n%s\n----" % stdout)
@@ -366,7 +373,7 @@ def runcmd(my_cmd):
 		
 	except :
 		print("Exception: Command execution failed with unknown error")
-		cmd_ret['status'] = 'failed'
+		cmd_ret['status'] = 'failed - unknown error/exception'
 	
 	return cmd_ret
 

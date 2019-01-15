@@ -345,8 +345,9 @@ class DDR_ida_action_handler(idaapi.action_handler_t):
 		if self.cmd == ("Get_Set_Max_Instr"):
 			cmt_rnds = idc.AskLong(MAX_INSTR_TO_EXECUTE, "Please enter max. number of instructions to process in DynamoRio analysis (Default: 20000):")
 			if cmt_rnds > 0:
-				if cmt_rnds > 20000:
-					idaapi.warning("Setting max. instructions to greater than 20000 might be slow. Make sure you do not run into API timeouts (MAX_API_TIMEOUT).")
+				if cmt_rnds > 40000:
+					idaapi.warning("Setting max. instructions to greater than 40000 might be slow. Only use it for 'Run Light Trace on Segment' feature " + 
+						"or make sure you do not run into API timeouts (MAX_API_TIMEOUT) because the analysis takes too long on the server side.")
 				MAX_INSTR_TO_EXECUTE = cmt_rnds
 				DDR_print_mesg("[Get_Set_Max_Instr] Max. Number of instructions to process in DynamoRio analysis set to: %d" % MAX_INSTR_TO_EXECUTE, 7)
 			return 1
@@ -564,6 +565,7 @@ class DDR_ida_action_handler(idaapi.action_handler_t):
 					jsonfile_loaded = False
 					return False
 				else:
+					DDR_print_mesg("Instructions traced in JSON file: %d" % len(jsondata["instruction"]))
 					return True
 		except IOError as e:
 			DDR_print_mesg("Failed to open JSON file. Quitting operation.")

@@ -332,7 +332,10 @@ static void event_thread_init(void *drcontext)
 	
 	// Open instruction log file.  
 	f = dr_open_file(LogFilename, DR_FILE_WRITE_OVERWRITE);
-	DR_ASSERT(f != INVALID_FILE);
+	if (f == INVALID_FILE) {
+		dr_printf("ERROR: Can't create instruction log file. Does the directory you specified exist?\n");
+		dr_exit_process(1);
+	}
 	drmgr_set_tls_field(drcontext, tls_idx, (void *)(ptr_uint_t)f);
 
 	// Open api call log file. 
@@ -343,7 +346,10 @@ static void event_thread_init(void *drcontext)
 	strcat_s(api_logfile, MAX_PATH, "_apicalls.json");
 	dr_printf("Using API calls logfile: %s\n", api_logfile);
 	api_json_f = dr_open_file(api_logfile, DR_FILE_WRITE_OVERWRITE);
-	DR_ASSERT(f != INVALID_FILE);
+	if (api_json_f == INVALID_FILE) {
+		dr_printf("ERROR: Can't create API log file. Does the directory you specified exist?\n");
+		dr_exit_process(1);
+	}
 
 	drmgr_set_tls_field(drcontext, tls_idx2, (void *)(ptr_uint_t)api_json_f);
 	dr_fprintf(api_json_f, "{\n\"apicalls\" :\n [\n");

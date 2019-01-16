@@ -45,24 +45,27 @@ import zipfile
 app = flask.Flask(__name__)
 #app.config["DEBUG"] = True
 
-CERT_FILE   = "ddr_server.crt"
-KEY_FILE    = "ddr_server.key"
-APIKEY_FILE = "ddr_apikey.txt"
-MY_IPADDR   = "127.0.0.1"
-MY_PORT     = "5000"
-MY_FQDN     = "malwarehost.local"
-CONFDIR		= "C:\\Users\\Dex Dexter\\Documents\\DDR_files\\"
+CERT_FILE   = r"ddr_server.crt"
+KEY_FILE    = r"ddr_server.key"
+APIKEY_FILE = r"ddr_apikey.txt"
+MY_IPADDR   = r"192.168.100.122"
+MY_PORT     = r"5000"
+MY_FQDN     = r"malwarehost.local"
+CONFDIR		= r"C:\Users\Dex Dexter\Documents\DDR_tool"
 
-CFG_DYNRIO_DRRUN_X32     = "C:\\tools\\DynamoRIO-Windows-7.0.0-RC1\\bin32\\drrun.exe"
-CFG_DYNRIO_CLIENTDLL_X32 = "C:\\Users\\Dex Dexter\\Documents\\DDR_files\\ddr32.dll"
-CFG_DYNRIO_DRRUN_X64     = "C:\\tools\\DynamoRIO-Windows-7.0.0-RC1\\bin64\\drrun.exe" 
-CFG_DYNRIO_CLIENTDLL_X64 = "C:\\Users\\Dex Dexter\\Documents\\DDR_files\\ddr64.dll"
+# verify directory ends with backslash
+if not CONFDIR.endswith("\\"):
+	CONFDIR += "\\"
+
+CFG_DYNRIO_DRRUN_X32     = r"C:\tools\DynamoRIO-Windows-7.0.0-RC1\bin32\drrun.exe"
+CFG_DYNRIO_CLIENTDLL_X32 = r"C:\Users\Dex Dexter\Documents\Visual Studio 2017\Projects\ddr\Release\\ddr.dll"
+CFG_DYNRIO_DRRUN_X64     = r"C:\tools\DynamoRIO-Windows-7.0.0-RC1\bin64\drrun.exe" 
+CFG_DYNRIO_CLIENTDLL_X64 = r"C:\Users\Dex Dexter\Documents\Visual Studio 2017\Projects\ddr\x64\Release\ddr.dll"
 
 tmpdir = tempfile.gettempdir()
 
 cert_file = CONFDIR + CERT_FILE
 cert_key  = CONFDIR + KEY_FILE
-
 
 @app.route('/api/v1/cmd', methods=['POST'])
 def api_id():
@@ -75,63 +78,66 @@ def api_id():
 		if flask.request.form['apikey'] == DDR_WEBAPI_KEY:
 			pass
 		else:
-			return flask.jsonify({ "return_status" : "Error: Wrong API key" })
+			return flask.jsonify({ "return_status" : "Error: Wrong API key" }), 201
 	else:
-		return flask.jsonify({ "return_status" : "Error: No API key given" })
+		return flask.jsonify({ "return_status" : "Error: No API key given" }), 201
 
 
 	if 'id' in flask.request.form:
 		try:
 			id = int(flask.request.form['id'])
 		except:
-			return flask.jsonify({ "return_status" : "Error: Failed to convert command id number" })
+			return flask.jsonify({ "return_status" : "Error: Failed to convert command id number" }), 201
 	else:
-		return flask.jsonify({ "return_status" : "Error: No id field provided. Please specify an id." })
+		return flask.jsonify({ "return_status" : "Error: No id field provided. Please specify an id." }), 201
 
 
 	if 'dynrio_sample' in flask.request.form:
 		try:
 			dynrio_sample = flask.request.form['dynrio_sample']
+			if not os.path.isfile(dynrio_sample):
+				print("[ERROR] Sample file not found. Did you copy it and/or configure the SERVER_LOCAL_SAMPLE_DIR in ddr_plugin.py properly ?")
+				return flask.jsonify({ "return_status" : "Error: Sample file not found. Did you copy it and/or configure the SERVER_LOCAL_SAMPLE_DIR properly ?" }), 201
 		except:
-			return flask.jsonify({ "return_status" : "Error: Failed to convert command dynrio_sample number" })
+			return flask.jsonify({ "return_status" : "Error: Failed to convert command dynrio_sample number" }), 201
 	else:
-		return flask.jsonify({ "return_status" : "Error: No dynrio_sample field provided. Please specify an dynrio_sample." })
+		return flask.jsonify({ "return_status" : "Error: No dynrio_sample field provided. Please specify an dynrio_sample." }), 201
 
 
 	if 'start_addr' in flask.request.form:
 		try:
 			start_addr = int(flask.request.form['start_addr'])
 		except:
-			return flask.jsonify({ "return_status" : "Error: Failed to convert command start_addr number" })
+			return flask.jsonify({ "return_status" : "Error: Failed to convert command start_addr number" }), 201
 	else:
-		return flask.jsonify({ "return_status" : "Error: No start_addr field provstart_addred. Please specify an start_addr." })
+		return flask.jsonify({ "return_status" : "Error: No start_addr field provstart_addred. Please specify an start_addr." }), 201
 
 
 	if 'end_addr' in flask.request.form:
 		try:
 			end_addr = int(flask.request.form['end_addr'])
 		except:
-			return flask.jsonify({ "return_status" : "Error: Failed to convert command end_addr number" })
+			return flask.jsonify({ "return_status" : "Error: Failed to convert command end_addr number" }), 201
 	else:
-		return flask.jsonify({ "return_status" : "Error: No end_addr field provided. Please specify an end_addr." })
+		return flask.jsonify({ "return_status" : "Error: No end_addr field provided. Please specify an end_addr." }), 201
 
 
 	if 'instr_count' in flask.request.form:
 		try:
 			instr_count = int(flask.request.form['instr_count'])
 		except:
-			return flask.jsonify({ "return_status" : "Error: Failed to convert command instr_count number" })
+			return flask.jsonify({ "return_status" : "Error: Failed to convert command instr_count number" }), 201
 	else:
-		return flask.jsonify({ "return_status" : "Error: No instr_count field provided. Please specify an instr_count." })
+		return flask.jsonify({ "return_status" : "Error: No instr_count field provided. Please specify an instr_count." }), 201
 
 
 	if 'arch_bits' in flask.request.form:
 		try:
 			arch_bits = int(flask.request.form['arch_bits'])
 		except:
-			return flask.jsonify({ "return_status" : "Error: Failed to convert command arch_bits" })
+			return flask.jsonify({ "return_status" : "Error: Failed to convert command arch_bits" }), 201
 	else:
-		return flask.jsonify({ "return_status" : "Error: No arch_bits field provided. Please specify an arch_bits." })
+		return flask.jsonify({ "return_status" : "Error: No arch_bits field provided. Please specify an arch_bits." }), 201
 
 
 	if 'break_addr' in flask.request.form:
@@ -184,8 +190,10 @@ def api_id():
 				return flask.send_file(zipfilename, as_attachment=True)
 			else:
 				print("[ERROR] Failed to zip files")
+				return flask.jsonify({ "return_status" : "Error: Failed to zip files on server side. Pls restart server and IDA" }), 201
 				exit(1)
 		else:
+			return flask.jsonify({ "return_status" : "Error: Failed to run sample on server side. Pls restart server and IDA" }), 201
 			exit(1)
 
 	# Delete temp. logfiles of full analysis
@@ -201,7 +209,7 @@ def api_id():
 			os.remove(zipfilename)
 		except:
 			print("[ERROR] Failed to delete tmp. file(s)")
-			return flask.jsonify({ "return_status" : "failed" })
+			return flask.jsonify({ "return_status" : "Error: failed to delete tmp. files on server" }), 201
 
 		print("Temp. log file deleted.")
 		return flask.jsonify({ "return_status" : "success" })
@@ -225,7 +233,7 @@ def api_id():
 		
 		runstatus = runcmd(dyn_full)
 		if runstatus['status'] == 'success':
-
+			delete_target_file(jsonfile_name_api)
 			os.rename(jsonfile_name_api_trace_only, jsonfile_name_api)
 			filelist = [ jsonfile_name_trace_only, jsonfile_name_api]
 
@@ -234,9 +242,11 @@ def api_id():
 				return flask.send_file(zipfilename, as_attachment=True)
 			else:
 				print("[ERROR] Failed to zip files")
+				return flask.jsonify({ "return_status" : "Error: Failed to zip files on server side. Pls restart server and IDA" }), 201
 				exit(1)
 		else:
 			print("[ERROR] Failed to execute command. Runstatus = %s" % runstatus['status'] )
+			return flask.jsonify({ "return_status" : "Error: Failed to run sample on server side. Pls restart server and IDA" }), 201
 			exit(1)
 
 	# Delete trace-only tmp. file
@@ -251,14 +261,20 @@ def api_id():
 			os.remove(zipfilename)
 		except:
 			print("[ERROR] Failed to delete temp. trace-only file(s):")
-			return flask.jsonify({ "return_status" : "failed" })
+			return flask.jsonify({ "return_status" : "Error: failed to delete trace-only tmp. files on server" }), 201
 
 		print("Temp. trace-only log files deleted")
 		return flask.jsonify({ "return_status" : "success" })
 
 	print("[ERROR] Invalid API call received: ID=%d" % id)
-	return flask.jsonify({ "return_status" : "failed" })
+	return flask.jsonify({ "return_status" : "Error: Invalid API call received" }), 201
 
+def delete_target_file(targetfile):
+
+	if not os.path.isfile(targetfile):
+		return
+
+	os.remove(targetfile)
 
 def zip_files(filelist, zipfilename):
 	""" 
@@ -421,8 +437,26 @@ def build_dynRio_full_run_cmd(start_addr=None, end_addr=None, break_addr=None, i
 		dynrio_cmd_x64.append("\"" + dynrio_sample + "\"")
 		return dynrio_cmd_x64
 
+def check_config_files_exist(files, dirs):
+	ret = True
+	
+	for dir in dirs:
+		if not os.path.isdir(dir):
+			print("[ERROR] Directory: %s not found." % dir)
+			ret = False
+
+	for fname in files:
+		if not os.path.isfile(fname):
+			print("[ERROR] File: %s not found." % fname)
+			ret = False
+
+	return ret
 
 if __name__ == "__main__":
+
+	# check for config errors
+	if not check_config_files_exist([CFG_DYNRIO_DRRUN_X32,CFG_DYNRIO_CLIENTDLL_X32,CFG_DYNRIO_DRRUN_X64,CFG_DYNRIO_CLIENTDLL_X64], [CONFDIR]):
+		exit(1)
 
 	# Create self signed certificate for TLS communication 
 	create_self_signed_cert()

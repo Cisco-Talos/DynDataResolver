@@ -46,16 +46,17 @@ pip install -U pyOpenSSL
 
 Hint: Make sure you install these requirements for the same Python version IDA is using. 
 
-**Disclaimer**
+**Disclaimer**  
 Talos is releasing this alpha version knowing that it may contain a few bugs and can be improved upon in the future. Nevertheless, we think it is a useful tool that we want to share with the community at an early stage. Please see the source code for where to send issues, bug reports and feature requests. Feel free to contact the author if you run into issues.
 
-**Roadmap** 
-Automatically copy sample file from IDA to DDRserver.py side
-Manually enter logging address space range via 'Trace' context menu     
-Create separated config file
-Kill DynamoRIO client after n seconds to fight sleepers
-Get last n values for instructions which are executed multiple times
-Improve input checks for user-provided data
-Improve API implementation
-Code cleanup needs to be better structured for easier implementation of new features.
+**Roadmap**   
+- Automatically copy sample file from IDA to DDRserver.py side  
+- Manually enter logging address space range via 'Trace' context menu  
+- Create separated config file  
+- Return more info to plugin if sample execution returns and error  
+- Kill DynamoRIO client after n seconds to fight sleepers  
+- Get last n values for instructions which are executed multiple times  
+- Improve input checks for user-provided data  
+- Improve API implementation  
+- Code cleanup needs to be better structured for easier implementation of new features.   
 

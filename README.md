@@ -23,9 +23,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 **Blog**
 
-A new version will be released soon. You can find a preview video here:
+A new version will be released tomorrow. You can find a preview video here:
 
 https://youtu.be/miSFddzvzL8
+
 
 
 

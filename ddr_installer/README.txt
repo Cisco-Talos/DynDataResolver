@@ -9,6 +9,7 @@ Usual setup:
              |             the first time during installation.
              V
   Malware PC (DynamoRio, ddr32.dll, ddr64.dll, ddr_server.py)
+  
 Notes:
 ------
 Installing both the server and the plugin on the same PC, should work to, but is not 

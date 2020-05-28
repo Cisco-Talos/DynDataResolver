@@ -1,0 +1,11 @@
+﻿  ddr_helper_functions.c
+  dump_buffer1.c
+  main.c
+  patch_exe.c
+  trace_instr.c
+     Creating library Z:\malware\reveng-tools\DynDataResolver\Git\DynDataResolver\ddr_client\x64\Release\ddr_stable.lib and object Z:\malware\reveng-tools\DynDataResolver\Git\DynDataResolver\ddr_client\x64\Release\ddr_stable.exp
+  Generating code
+  Previous IPDB not found, fall back to full compilation.
+  All 45 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  ddr_stable.vcxproj -> Z:\malware\reveng-tools\DynDataResolver\Git\DynDataResolver\ddr_client\x64\Release\ddr_stable.dll

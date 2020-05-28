@@ -1,0 +1,61 @@
+# --- DDR sample config file ---
+#
+# Lines should not be more than 350 characters long, file names not more than 256
+# characters.
+#
+# Comments must be written with a leading '#'
+# No extra spaces are allowed in config lines
+# Different fields are separated by exactly one blank
+
+All number/address values are expected to be hexadecimal values without any 
+leading character.
+# -----------------------------------------------------------------------------
+
+# -- NOP out instructions -- 
+# N <START ADDR> <END ADDR>
+# <START ADDR> = Start program counter address for NOP'ing instructions (hex)
+# <END ADDR>   = End program counter address for NOP'ing instructions (hex)
+# <START ADDR> and <END ADDR> can be the same for NOP'ing one instr.
+# e.g. N 004012EE 004012F6
+N 000000014000121C 000000014000121C
+N 000000014000145A 000000014000145A
+
+# -- Patch EFLAG --
+# T <EFLAG> <PC-ADDR>
+# <EFLAG> = [CF, PF, AF, ZF, SF, DF, OF] 
+# <PC-ADDR> = program counter address where to toggle the EFLAG before 
+#             instruction gets executed e.g. jle (hex)
+# e.g. T SF 004012C4 #example comment
+T SF 00000001400013A7
+T SF 00000001400013E5 #example comment
+
+# -- Always skip function at <FUNC ADDR> when called --
+# <FUNC ADDR> = Functions address which gets wrapped, call to func is skipped
+# <RET VALUE> = set return value of wrapped function (NEED TO BE UNSINGED INT)
+# C <FUNC ADDR> <UINT RET VALUE IN HEX>
+# e.g. C 00401100 00000001
+C 00000001400011E0 0
+C 0000000140001210 FFFFFFFFFFFFFFFF # -1
+
+# -- Dump buffer to file --: 
+# D <SIZE PC> <OP-SIZE> <BUFADDR PC> <OP-BUFADDR> <DUMP-PC> <FILENAME>
+# <SIZE PC>    = program counter address where to get the size of the buffer
+# <OP-SIZE>    = operant at <SIZE PC> to get the buffer size from
+#                e.g. SP0 = (S)ource operant 0. Value is a (P)ointer.
+#                     DV1 = (D)estination operant 1. Absolut (V)alue.  
+# <BUFADDR PC> = program counter address where to get the buffer address
+# <OP-BUFADDR> = operant at <BUFADDR PC> PC to get the buffer size from
+# <DUMP-PC>    = program counter address where to finally dump the buffer
+# <FILENAME>   = dump filename 
+# e.g. D 0040117E SP0 0040118B SP0 004011F9 dump1.bin
+D 0000000140001280 SP0 000000014000128D SP0 000000014000132B dump_x64_1.bin
+D 0000000140001494 SP0 00000001400014A1 SP0 000000014000153F dump_x64_2.bin
+#
+# -- Run Trace --:
+# start  end    max.instr  breakaddr lighttrace filename (the last in the 
+# list will be used)
+L 140001000 140003000 20000 na FALSE trace_tmp_CBEFF9E003C9FA8D8C568CFB85A885AF.json
+#
+# -- Patch binary with endless Loop at address --:
+# loop-addr
+B 0000000140001280

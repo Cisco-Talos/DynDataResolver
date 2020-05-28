@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+requests
+clint
+Flask
+pyOpenSSL
+cheroot
+werkzeug
+python-multipart
+aiofiles
+psutil

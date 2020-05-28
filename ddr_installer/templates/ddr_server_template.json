@@ -1,0 +1,18 @@
+{ 
+  "DDR_SERVER_VERSION"       : "<DDR_SERVER_VERSION>", 
+  "APILOGGING"               : "<APILOGGING>",
+  "DEBUG_API_JSON"           : <DEBUG_API_JSON>,
+  "CERT_FILE"                : "<CERT_FILE>",
+  "KEY_FILE"                 : "<KEY_FILE>",
+  "APIKEY_FILE"              : "<APIKEY_FILE>",
+  "SERVER_IP"                : "<SERVER_IP>",
+  "SERVER_PORT"              : "<SERVER_PORT>",
+  "MY_FQDN"                  : "<MY_FQDN>",
+  "CONFDIR"                  : "<CONFDIR>",
+  "DDR_VIRTENV"              : "<DDR_VIRTENV>",
+  "MAX_CFG_LINE_LENGTH"      : <MAX_CFG_LINE_LENGTH>,
+  "CFG_DYNRIO_DRRUN_X32"     : "<CFG_DYNRIO_DRRUN_X32>",
+  "CFG_DYNRIO_CLIENTDLL_X32" : "<CFG_DYNRIO_CLIENTDLL_X32>",
+  "CFG_DYNRIO_DRRUN_X64"     : "<CFG_DYNRIO_DRRUN_X64>",
+  "CFG_DYNRIO_CLIENTDLL_X64" : "<CFG_DYNRIO_CLIENTDLL_X64>"
+}

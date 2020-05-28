@@ -1,10 +1,10 @@
 # Dynamic Data Resolver (DDR) 
 
-Version 1.0 beta is coming soon... 
+Version 1.0 beta 
 
 ---
 
-Copyright (C) 2019 Cisco Talos  
+Copyright (C) 2020 Cisco Talos  
 Author: Holger Unterbrink (hunterbr@cisco.com)
 
 This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 **Blog**
 
-A new version will be released tomorrow. You can find a preview video here:
+Release date: 28th of May 2020 17:00 CET
+
+The documentation and installation description of the project can be found here at release time:
+
+https://blog.talosintelligence.com/2020/05/dynamic-data-resolver-1-0.html
+
+A quick feature walkthrough video is here:
 
 https://youtu.be/miSFddzvzL8
 

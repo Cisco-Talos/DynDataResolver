@@ -1,0 +1,134 @@
+Open BUGS:
+----------
+
+1) Some times the DDR client DLL (e.g. ddr64.dll) is crashing:
+
+C:\tools\DDR\DynamoRIO-Windows-8.0.0-1\bin64\drrun.exe -c "C:\tools\DDR\ddr64.dll" -c "C:\tools\DDR\samples\testsample0_64.cfg" -- "C:\tools\DDR\samples\testsample0_64.exe"
+
+testsample0_64.cfg:
+N 1400012CB 1400012DD
+N 14000110C 14000110C
+L 140001220 14000125F 20000 na FALSE "C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645.json"
+
+Crash:
+b'<Application C:\\tools\\DDR\\samples\\testsample0_64.exe (1104).  DynamoRIO DDR tracer internal crash at PC 0x000000007107aaf0.  Please report this at hunterbr@cisco.com.  Program aborted.\n0xc0000005 0x00000000 0x000
+00007107aaf0 0x000000007107aaf0 0x0000000000000000 0x0000000000000000\nBase: 0x0000000071000000\nRegisters: eax=0x0000000000000001 ebx=0x000000013f505d40 ecx=0x0000000000000000 edx=0x0000000000000000\n\tesi=0x0000000000
+00000 edi=0x000000013f4ddf80 esp=0x000000013f4ddec0 ebp=0x000000013f4de030\n\tr8 =0x000000013f4ddfe0 r9 =0x00000000710edb40 r10=0x000000013f4ddfe2 r11=0x0000000071112800\n\tr12=0x000000013f431200 r13=0x0000000000000000
+14=0x0000000000000000 r15=0x0000000000000000\n\teflags=0x0000000000010246\nversion 8.0.0, build 1\n-no_dynamic_options -disasm_mask 1 -client_lib \'C:\\tools\\DDR\\ddr64.dll;0;"-c" "C:\\tools\\DDR\\samples\\testsample0_
+4.cfg"\' -code_api -probe_api -stack_size 56K -max_elide_jmp 0 -max_elide_call 0 -no_inline_ignored_syscalls -native_exec_default_list \'\' -no_native_exec_managed_code -no_indcall2direct \n0x000000013f4de030 0x00000000
+108319b\n0x00000000bf446a48 0x3030303030303078>\n'
+
+Bad/Good run:
+c:\tools\DDR>C:\tools\DDR\DynamoRIO-Windows-8.0.0-1\bin64\drrun.exe -c "C:\tools\DDR\ddr64.dll" -c "C:\tools\DDR\samples\testsample0_64.cfg" -- "C:\tools\DDR\samples\testsample0_64.exe"
+
+[DDR] [INFO] DDR Client DLL x64 Version 1.00 beta initializing...
+[DDR] [INFO] DDR Client DLL running from: C:\tools\DDR
+[DDR] [INFO] Reading config from file: C:\tools\DDR\samples\testsample0_64.cfg
+[DDR] [INFO] Trying to use trace logfile: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645.json
+[DDR] [INFO] Logfile exists
+[DDR] [INFO] Using new trace logfile: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_1380.json
+[DDR] [INFO] Done creating logfiles.
+[DDR] [INFO] Configuration file closed
+[DDR] [INFO] NOP'ing from 0x00000001400012cb to 0x00000001400012dd
+[DDR] [INFO] NOP'ing from 0x000000014000110c to 0x000000014000110c
+[DDR] [INFO] Doing a full trace from 0x0000000140001220 to 0x000000014000125f logging to C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645.json
+[DDR] [INFO] Initalization done.
+[DDR] [INFO] New thread initalization started. Appname = testsample0_64.exe Process ID = 1380 Threat ID = 1920
+[DDR] [INFO] Writing process info to: C:\tools\DDR\samples\ddr_processtrace.txt
+[DDR] [INFO] New process, first thread started.
+[DDR] [WARNING] Initial process launched a new process !
+[DDR] [INFO] Initial process pid was: 1104
+[DDR] [INFO] writing thread info to: C:\tools\DDR\samples\ddr_threads_testsample0_64.exe_1380.txt
+[DDR] [INFO] First thread. Setting main thread id to 1920
+[DDR] [INFO] Samplename: C:\tools\DDR\samples\testsample0_64.exe.
+[DDR] [INFO] PEB            : 0x000007fffffdf000
+[DDR] [INFO] PE Imagebase   : 0x000000013f830000
+[DDR] [INFO] PE EP          : 0x000000013f831764
+[DDR] [INFO] File EP        : 0x0000000140001764
+[DDR] [INFO] EP diff        : 0x00000000007d0000
+main: 1. Memory allocated
+Main: Buffer 1(@0x0000000000160000 Size:113): PE12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+main: a is NOT greater 5.
+main: a = 2 is NOT greater 5.
+[DDR] [INFO] NOP'ing instruction at 0x00000001400012cb:
+[DDR] [INFO] Disasm(PC 0x400012cb): mov    ecx, dword ptr [rsp+0x20]
+[DDR] [INFO] NOP'ing instruction at 0x00000001400012cf:
+[DDR] [INFO] Disasm(PC 0x400012cf): call   0x000000013f831100
+
+c:\tools\DDR>C:\tools\DDR\DynamoRIO-Windows-8.0.0-1\bin64\drrun.exe -c "C:\tools\DDR\ddr64.dll" -c "C:\tools\DDR\samples\testsample0_64.cfg" -- "C:\tools\DDR\samples\testsample0_64.exe"
+
+[DDR] [INFO] DDR Client DLL x64 Version 1.00 beta initializing...
+[DDR] [INFO] DDR Client DLL running from: C:\tools\DDR
+[DDR] [INFO] Reading config from file: C:\tools\DDR\samples\testsample0_64.cfg
+[DDR] [INFO] Trying to use trace logfile: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645.json
+[DDR] [INFO] Logfile exists
+[DDR] [INFO] Using new trace logfile: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340.json
+[DDR] [INFO] Done creating logfiles.
+[DDR] [INFO] Configuration file closed
+[DDR] [INFO] NOP'ing from 0x00000001400012cb to 0x00000001400012dd
+[DDR] [INFO] NOP'ing from 0x000000014000110c to 0x000000014000110c
+[DDR] [INFO] Doing a full trace from 0x0000000140001220 to 0x000000014000125f logging to C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645.json
+[DDR] [INFO] Initalization done.
+[DDR] [INFO] New thread initalization started. Appname = testsample0_64.exe Process ID = 2340 Threat ID = 2928
+[DDR] [INFO] Writing process info to: C:\tools\DDR\samples\ddr_processtrace.txt
+[DDR] [INFO] New process, first thread started.
+[DDR] [WARNING] Initial process launched a new process !
+[DDR] [INFO] Initial process pid was: 1104
+[DDR] [INFO] writing thread info to: C:\tools\DDR\samples\ddr_threads_testsample0_64.exe_2340.txt
+[DDR] [INFO] First thread. Setting main thread id to 2928
+[DDR] [INFO] Samplename: C:\tools\DDR\samples\testsample0_64.exe.
+[DDR] [INFO] PEB            : 0x000007fffffdf000
+[DDR] [INFO] PE Imagebase   : 0x000000013f4a0000
+[DDR] [INFO] PE EP          : 0x000000013f4a1764
+[DDR] [INFO] File EP        : 0x0000000140001764
+[DDR] [INFO] EP diff        : 0x0000000000b60000
+main: 1. Memory allocated
+Main: Buffer 1(@0x0000000000060000 Size:113): PE12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+main: a is NOT greater 5.
+main: a = 4 is NOT greater 5.
+[DDR] [INFO] NOP'ing instruction at 0x00000001400012cb:
+[DDR] [INFO] Disasm(PC 0x400012cb): mov    ecx, dword ptr [rsp+0x20]
+[DDR] [INFO] NOP'ing instruction at 0x00000001400012cf:
+[DDR] [INFO] Disasm(PC 0x400012cf): call   0x000000013f4a1100
+[DDR] [INFO] NOP'ing instruction at 0x00000001400012d4:
+[DDR] [INFO] Disasm(PC 0x400012d4): mov    dword ptr [rsp+0x20], eax
+[DDR] [INFO] NOP'ing instruction at 0x00000001400012d8:
+[DDR] [INFO] Disasm(PC 0x400012d8): imul   eax, dword ptr [rsp+0x20], 0x03
+[DDR] [INFO] NOP'ing instruction at 0x00000001400012dd:
+[DDR] [INFO] Disasm(PC 0x400012dd): mov    dword ptr [rsp+0x20], eax
+myfunc2: a = 6
+main: 1. a = 6 in main
+[DDR] [INFO] NOP'ing instruction at 0x000000014000110c:
+[DDR] [INFO] Disasm(PC 0x4000110c): add    eax, 0x02
+myfunc1: a = 6
+myfunc2: a = 8
+myfunc2: a = 14
+main: 2. a = 15 in main
+main: 2. Memory allocated
+main: Buffer 2(@0x0000000000170000 Size:116): TEST212345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+main: 1. Release succeeded.
+main: 2. Release succeeded.
+
+Main: Good bye...
+
+[DDR] [INFO] Thread with id 2928 was terminated
+[DDR] [INFO] Main thread (id = 2928) was terminated.
+[DDR] [INFO] Fixing trace file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340.json
+[DDR] [INFO] Fixing file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340.json
+[DDR] [INFO] JSON file is ok, no comma at the end found.
+[DDR] [INFO] Opening file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340.json for writing
+[DDR] [INFO] Writing fixed buffer to file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340.json
+[DDR] [INFO] Done. Final logfile C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340.json written. Length: 32294 bytes.
+[DDR] [INFO] Trace file fixed.
+[DDR] [INFO] Fixing API trace file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340_apicalls.json
+[DDR] [INFO] Fixing file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340_apicalls.json
+[DDR] [INFO] JSON file is ok, no comma at the end found.
+[DDR] [INFO] Opening file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340_apicalls.json for writing
+[DDR] [INFO] Writing fixed buffer to file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340_apicalls.json
+[DDR] [INFO] Done. Final logfile C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340_apicalls.json written. Length: 724393 bytes.
+[DDR] [INFO] API trace file fixed.
+[DDR] [INFO] Time : 09:38:12:21
+
+c:\tools\DDR>
+----
+

@@ -199,6 +199,9 @@ menu_items = OrderedDict([
 ("DDR_Action_DeleteNonRepeatableComments" , { "menu_str":"Delete non-repeatable comments"                   , "hotkey":None            , "submenu":""              , "ah_id":"DeleteNonRepeatableComments", "x64only":False, "hide_in_context":False})
 ])
 
+def hex(x):
+    return '0x%x' % x
+
 def PLUGIN_ENTRY():
     """ Set plugin entry class """
     return ddrPlugin()

@@ -16,6 +16,7 @@ cryptography==2.9.2       # via pyopenssl
 fastapi==0.54.2           # via -r requirements.in
 flask==1.1.2              # via -r requirements.in
 h11==0.9.0                # via uvicorn
+httptools==0.1.1          # via uvicorn
 idna==2.9                 # via requests
 itsdangerous==1.1.0       # via flask
 jaraco.functools==3.0.1   # via cheroot
@@ -31,6 +32,7 @@ requests==2.23.0          # via -r requirements.in
 six==1.14.0               # via cheroot, cryptography, pyopenssl, python-multipart
 starlette==0.13.2         # via fastapi
 urllib3==1.25.9           # via requests
-uvicorn==0.11.5           # via -r requirements.in
+uvicorn==0.11.7           # via -r requirements.in
+uvloop==0.14.0            # via uvicorn
 websockets==8.1           # via uvicorn
 werkzeug==1.0.1           # via -r requirements.in, flask

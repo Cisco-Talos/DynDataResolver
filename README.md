@@ -6,9 +6,9 @@ Version 1.0 beta
 
 HINT:
 
-29. Sept 2020:
+29.Sept 2020:
 
-We are release a new version soon (1-3 weeks). 
+We are going to release a new version soon (1-3 weeks). 
 New version will have an improved installer and new debugging features
 Plus a few nice new IDA plugin workflow and usage features, stay tuned.... :)
 

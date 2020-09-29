@@ -4,6 +4,16 @@ Version 1.0 beta
 
 ---
 
+HINT:
+
+29. Sept 2020:
+
+We are release a new version soon (1-3 weeks). 
+New version will have an improved installer and new debugging features
+Plus a few nice new IDA plugin workflow and usage features, stay tuned.... :)
+
+---
+
 Copyright (C) 2020 Cisco Talos  
 Author: Holger Unterbrink (hunterbr@cisco.com)
 

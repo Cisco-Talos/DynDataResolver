@@ -12,6 +12,13 @@ We are going to release a new version soon (1-3 weeks).
 New version will have an improved installer and new debugging features
 Plus a few nice new IDA plugin workflow and usage features, stay tuned.... :)
 
+Caveat:
+There is a bug in the underlaying dynamorio framework which is investigated 
+in the moment in AMD CPUs (at least the Ryzen ones). 32bit samples are crashing.
+64 works fine.
+
+https://github.com/DynamoRIO/dynamorio/issues/4091
+
 ---
 
 Copyright (C) 2020 Cisco Talos  

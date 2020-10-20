@@ -47,7 +47,7 @@ int __cdecl get_mem_addr_dump_buffer(void* drcontext, reg_t* memaddr, char Optyp
 	if (tolower(Optype) == 's') {
 		dr_printf("[DDR] [INFO] Getting buffer address from source operant %d.\n", Opnum);
 		// op is register
-		if (opnd_is_reg(opnd)) {
+		if (my_opnd_is_reg(opnd)) {
 			reg = opnd_get_reg(opnd);
 			*memaddr = reg_get_value(reg, &mc);
 			//dr_printf("[DDR] [DEBUG] inst_mem_addr_reg: "PFX"\n", *memaddr);
@@ -58,7 +58,7 @@ int __cdecl get_mem_addr_dump_buffer(void* drcontext, reg_t* memaddr, char Optyp
 		}
 		// op is not a register
 		else {
-			*memaddr = (reg_t)opnd_compute_address(opnd, &mc);
+			*memaddr = (reg_t)my_opnd_compute_address(opnd, &mc);
 			//dr_printf("[DDR] [DEBUG] inst_mem_addr_noreg: "PFX"\n", *memaddr);
 		}
 	}
@@ -69,7 +69,7 @@ int __cdecl get_mem_addr_dump_buffer(void* drcontext, reg_t* memaddr, char Optyp
 		opnd = instr_get_dst(&instr, Opnum);
 
 		// op is register
-		if (opnd_is_reg(opnd)) {
+		if (my_opnd_is_reg(opnd)) {
 			reg = opnd_get_reg(opnd);
 			*memaddr = reg_get_value(reg, &mc);
 			//dr_printf("[DDR] [INFO] inst_mem_addr_reg: "PFX"\n", *memaddr);
@@ -80,7 +80,7 @@ int __cdecl get_mem_addr_dump_buffer(void* drcontext, reg_t* memaddr, char Optyp
 		}
 		// op is not a register
 		else {
-			*memaddr = (reg_t)opnd_compute_address(opnd, &mc);
+			*memaddr = (reg_t)my_opnd_compute_address(opnd, &mc);
 			//dr_printf("[DDR] [INFO] inst_mem_addr_noreg: "PFX"\n", *memaddr);
 		}
 	}
@@ -104,7 +104,7 @@ int __cdecl get_op_size_dump_buffer(void* drcontext, reg_t* memaddr, char Optype
 	if (tolower(Optype) == 's') {
 		dr_printf("[DDR] [INFO] Getting buffer size from source operant %d.\n", Opnum);
 		// op is register
-		if (opnd_is_reg(opnd)) {
+		if (my_opnd_is_reg(opnd)) {
 			reg = opnd_get_reg(opnd);
 			*memaddr = (reg_t)reg_get_value(reg, &mc);
 			//dr_printf("[DDR] [INFO] inst_mem_addr_reg: "PFX"\n", *memaddr);
@@ -116,7 +116,7 @@ int __cdecl get_op_size_dump_buffer(void* drcontext, reg_t* memaddr, char Optype
 		}
 		// op is not a register
 		else {
-			*memaddr = (reg_t)opnd_compute_address(opnd, &mc);
+			*memaddr = (reg_t)my_opnd_compute_address(opnd, &mc);
 			//dr_printf("[DDR] [INFO] inst_mem_addr_noreg: "PFX"\n", *memaddr);
 		}
 	}
@@ -127,7 +127,7 @@ int __cdecl get_op_size_dump_buffer(void* drcontext, reg_t* memaddr, char Optype
 		opnd = instr_get_dst(&instr, Opnum);
 
 		// op is register
-		if (opnd_is_reg(opnd)) {
+		if (my_opnd_is_reg(opnd)) {
 			reg = opnd_get_reg(opnd);
 			*memaddr = reg_get_value(reg, &mc);
 			//dr_printf("[DDR] [INFO] inst_mem_addr_reg: "PFX"\n", *memaddr);
@@ -138,7 +138,7 @@ int __cdecl get_op_size_dump_buffer(void* drcontext, reg_t* memaddr, char Optype
 			//dr_printf("[DDR] [INFO] inst_mem_addr_immed: "PFX"\n", *memaddr);
 		}
 		else {
-			*memaddr = (reg_t)opnd_compute_address(opnd, &mc);
+			*memaddr = (reg_t)my_opnd_compute_address(opnd, &mc);
 			//dr_printf("[DDR] [INFO] inst_mem_addr_noreg: "PFX"\n", *memaddr);
 		}
 	}
@@ -164,7 +164,7 @@ void event_thread_init_global(void* drcontext)
 	dr_printf("[DDR] [INFO] New Threat initalization started. Process ID = %u Threat ID = %u\n", process_id, thread_id);
 
 	if (last_threat_id != 0) {
-		dr_printf("[DDR] [WARNING] This is not the first thread. Multithreaded is not supported, but works in many case.\n");
+		dr_printf("[DDR] [WARNING] This is not the first thread. Multithreaded is not supported, but works in many cases.\n");
 
 		if (patch_call_set) {
 
@@ -358,5 +358,5 @@ void __cdecl process_instr_dump_buffer(app_pc instr_addr, S_DUMP_PARA* dp) {
 			dr_printf("[DDR] [ERROR] [FINAL] Data not written to file. Bytes read: %d.\n", bytesread);
 		}
 	}
-	dr_global_free(bytesbuf, dumpbuf_size);
+	dr_global_free(bytesbuf, sizeof(char) * dumpbuf_size);
 }

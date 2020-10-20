@@ -23,7 +23,7 @@ The script will download all dependencies and create all necessary configuration
 for your environment. It will guide you through the whole installation process of the 
 DDR server and IDA plugin.
 It will not touch your local python environment, instead it creates a dedicated virtual 
-Pyhton environment for all dependencies. It will also create individual cryptographic 
+Python environment for all dependencies. It will also create individual cryptographic 
 material for the SSL encrypted traffic between the DDR server and IDA plugin.
 
 Pls report bugs and issues to hunterbr@cisco.com
@@ -35,16 +35,19 @@ as far as DDR is a complex tool and without knowing some basics, it might be dif
 use the tool in a proper way.
 ============================================================================================
 
-Dependancies:
--------------
+Dependencies:
+=============
 
-Python 3.x 
+Python 3.7 or 3.8  
+------------------
+If you are using IDA < 7.5 you should use Python 3.7 on the IDA machine. This is due to a
+bug in IDA 7.4 which is fixed in 7.5. If you are using 7.5 we recommend to use Python 3.8.
+In any case it is recommended to use Python 3.8 for the DDR server machine. If it is the
+same machine, go for 3.7. Again, the latter setup is NOT recommended, better use two separate
+machines !
 
-If you are using IDA < 7.5 you should use Python 3.7 on the IDA machine. This is due to a")
-bug in IDA 7.4 which is fixed in 7.5. If you are using 7.5 we recommend to use Python 3.8.")
-In any case it is recommended to use Python 3.8 for the DDR server machine. If it is the")
-same machine, go for 3.7. Again, the latter setup is NOT recommended, better use two separate")
-machines !")
+Latest versions of IDA are supporting Python 3.8, if your IDA setup is up to date, you can run 
+Python 3.8 on the DDR server and plugin side.
 
 See https://blog.talosintelligence.com/ for details.
 

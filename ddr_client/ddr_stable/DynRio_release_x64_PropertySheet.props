@@ -5,7 +5,7 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\tools\DynamoRIO-Windows-8.0.0-1\ext\include;C:\tools\DynamoRIO-Windows-8.0.0-1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\tools\dev\git\dynamorioX64\build\ext\include;C:\tools\dev\git\dynamorioX64\build\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level3</WarningLevel>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WINDOWS;X86_64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -14,7 +14,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>C:\tools\DynamoRIO-Windows-8.0.0-1\lib64;C:\tools\DynamoRIO-Windows-8.0.0-1\ext\lib64\release;C:\tools\DynamoRIO-Windows-8.0.0-1\lib64\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\tools\dev\git\dynamorioX64\build\lib64;C:\tools\dev\git\dynamorioX64\build\ext\lib64\release;C:\tools\dev\git\dynamorioX64\build\lib64\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Link>
       <AdditionalDependencies>dynamorio.lib;drmgr.lib;drreg.lib;drx.lib;drsyms.lib;drcontainers.lib;ntdll_imports.lib;drwrap.lib;%(AdditionalDependencies)</AdditionalDependencies>

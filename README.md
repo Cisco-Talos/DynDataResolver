@@ -1,18 +1,25 @@
 # Dynamic Data Resolver (DDR) 
 
-Version 1.0 beta 
+DDR Version 1.0.1 beta (version-101-beta)
 
 ---
 
-HINT:
+DDR Version 1.0.1 beta is public ! 
 
-29.Sept 2020:
+For now, we are maintaining it in the 'version-101-beta' branch.
 
-We are going to release a new version soon (1-3 weeks). 
-New version will have an improved installer and new debugging features
-Plus a few nice new IDA plugin workflow and usage features, stay tuned.... :)
+You can find an overview of the 1.0.1 features here (at 20 Oct 17:00 CET):
+https://blog.talosintelligence.com/2020/10/ddr101beta.html
+
+Please expect some delay in case you are opening bugs or ask for anything. 
+
+It is not the best timing, but I am offline until the 9th November for private reasons. 
+The option was not releasing the beta before I am back, but I though you might already 
+want to start playing with it.
 
 ---
+
+Version 1.0 beta (master)
 
 Copyright (C) 2020 Cisco Talos  
 Author: Holger Unterbrink (hunterbr@cisco.com)

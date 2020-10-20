@@ -5,7 +5,9 @@
 
 void event_module_load_trace_instr(void* drcontext, const module_data_t* info, bool loaded)
 {
-	//DEBUG: dr_printf("[DDR] Module loaded: %s:\n", dr_module_preferred_name(info));
+#ifdef _DEBUG
+	dr_printf("[DDR] [DEBUG] event_module_load_trace_instr module loaded: %s:\n", dr_module_preferred_name(info));
+#endif
 	if (lib_is_not_blacklisted_trace_instr(info))
 		iterate_exports_trace_instr(info);
 }
@@ -18,8 +20,10 @@ process_id_t getFirstPIDfromFile(char* pidsfilename) {
 	size_t bytes_read;
 	char data[MAX_PATH + 20];
 	char* sPid;
+	size_t sPidLen=0;
 	
 	for (max_retries = 0; max_retries < 3; max_retries++) {
+		dr_printf("[DDR] [INFO] Trying to open PID file: %s\n", pidsfilename);
 		fPidsfile = dr_open_file(pidsfilename, DR_FILE_READ); // write PID to PIDs file
 		if (fPidsfile == INVALID_FILE) {
 			dr_printf("[DDR] [ERROR] Failed to open initial process log file: %s. Attempt number: %u\n", pidsfilename, max_retries);
@@ -32,18 +36,22 @@ process_id_t getFirstPIDfromFile(char* pidsfilename) {
 	bytes_read = dr_read_file(fPidsfile, data, MAX_PATH + 10);
 	data[bytes_read] = '\0';
 	sPid = getSubstr(data, "[", "]");
+	sPidLen = strlen(sPid);
 	pid = (process_id_t) strtoull(sPid, NULL, 10);
-
+	
 	dr_close_file(fPidsfile);
 
+	dr_global_free(sPid, strlen(sPid)+1);
 	return pid;
 
 }
 
 void event_thread_init_trace_instr(void* drcontext)
 {
-	file_t fPidsfile;
-	char pidsfilename[MAX_PATH]; // = "samples\\ddr_processtrace.txt";
+#ifdef _DEBUG
+	dr_printf("\n[DDR] [DEBUG] event_thread_init_trace_instr start.\n");
+#endif
+
 	app_pc FileEntryPoint, PEEntryPoint, PEImagebase;
 	module_data_t* app;
 
@@ -53,95 +61,92 @@ void event_thread_init_trace_instr(void* drcontext)
 	byte* peb;
 	static thread_id_t last_threat_id;
 	size_t func_addr_fixed;
-	uint max_retries;
-	static process_id_t first_pid;
 	
+	thread_counter = thread_counter + 1;
 	thread_id  = dr_get_thread_id(drcontext);
 	process_id = dr_get_process_id();
 	app_name   = dr_get_application_name();
-	dr_printf("[DDR] [INFO] New thread initalization started. Appname = %s Process ID = %u Threat ID = %u\n", app_name, dr_get_process_id(), dr_get_thread_id(drcontext));
+	dr_printf("[DDR] [INFO] New thread initialization started. Appname = %s Process ID = %u Threat ID = %u Thread counter = %u\n", 
+		app_name, process_id, thread_id, thread_counter);
 
-	dr_snprintf(pidsfilename, MAX_PATH, "%s\\samples\\ddr_processtrace.txt", global_client_path);
-	dr_printf("[DDR] [INFO] Writing process info to: %s\n", pidsfilename);
-
-	if (procs == NULL) {
+	// is this first thread of the process ?
+	if (pListThreads == NULL) {
 		// ---- New process, first threat. ----
 		dr_printf("[DDR] [INFO] New process, first thread started.\n");
-		
-		if (CheckFileExists(pidsfilename)) {
-			// Not the first process
-			dr_printf("[DDR] [WARNING] Initial process launched a new process !\n");
-			// Lets get the first processes pid. Prepared for a later DDR version
-			first_pid = getFirstPIDfromFile(pidsfilename);
-			if (first_pid == 0) {
-				dr_printf("[DDR] [ERROR] Initial process pid not found\n");
-			}
-			else {
-				dr_printf("[DDR] [INFO] Initial process pid was: %u\n", first_pid);
-			}
-		}
-		// Create process log file
-		for (max_retries = 0; max_retries < 10; max_retries++) {
-			fPidsfile = dr_open_file(pidsfilename, DR_FILE_WRITE_APPEND); // write PID to PIDs file
-			if (fPidsfile == INVALID_FILE) {
-				dr_printf("[DDR] [ERROR] Failed to open initial process log file: %s Attempt: %u\n", pidsfilename, max_retries);
-				dr_printf("[DDR] [ERROR] Maybe too many processes are started faster then the OS can reopen the process log file.\n");
-				Sleep(300);
-			}
-			break;
-		}
-		dr_fprintf(fPidsfile, "%s [%u]\r\n", app_name, dr_get_process_id());
-		dr_close_file(fPidsfile);
-	
+
+		// allocate memory for threads linked list (pListThreads)
+		pListThreads = (S_PROCS*)dr_global_alloc(sizeof(S_PROCS));
+		pListThreads_start = pListThreads;
+
+#ifdef _DEBUG
+		dr_printf("[DDR] [DEBUG] [MEMOP] allocated memory for main thread. Memaddr: "PFX" thread_id=%d process_id=%u\n", 
+			pListThreads, thread_id, process_id);
+#endif
 		// create process-thread log file	
-		global_pidThreadsFullFilename = (char*)dr_global_alloc(MAX_PATH);
-		dr_snprintf(global_pidThreadsFullFilename, MAX_PATH, "%s\\samples\\%s_%s_%u.txt", global_client_path, global_pidThreadsFilename, app_name, dr_get_process_id());
+		if (global_pidThreadsFullFilename == NULL) {
+			global_pidThreadsFullFilename = (char*)dr_global_alloc(MAX_PATH);
+		}
+
+		dr_snprintf(global_pidThreadsFullFilename, MAX_PATH, "%s\\%s_%s_%u.txt", global_logpath, global_pidThreadsFilename, app_name, dr_get_process_id());
 		dr_printf("[DDR] [INFO] writing thread info to: %s\n", global_pidThreadsFullFilename);
 
 		global_fPidThreads = dr_open_file(global_pidThreadsFullFilename, DR_FILE_WRITE_OVERWRITE); // write PID to PIDs file
 		if (global_fPidThreads == INVALID_FILE) {
 			dr_printf("[DDR] [ERROR] Failed to open individual threads log file: %s\n", global_pidThreadsFullFilename);
 		}
-		dr_fprintf(global_fPidThreads, "%s [%u] [%u]\r\n", app_name, dr_get_process_id(), dr_get_thread_id(drcontext));
+		dr_global_free(global_pidThreadsFullFilename, MAX_PATH);
+
+		dr_fprintf(global_fPidThreads, "%s [%u] [%u]\r\n", app_name, process_id, thread_id);
 
 		// fill process structure
-		procs = (S_PROCS*) dr_global_alloc(sizeof(S_PROCS));
-		if (first_pid == 0) {
-			procs->start_process_id = dr_get_process_id();
+		// is this the first process ?
+		if (*processids == process_id) {
+			pListThreads->start_process_id = process_id;
 		}
 		else {
-			procs->start_process_id = first_pid;
+			pListThreads->start_process_id = *processids;
 		}
-		procs->prevproc = NULL;
-		procs->process_id = dr_get_process_id();
-		procs->threat_id = dr_get_thread_id(drcontext);
-		procs->nextproc = NULL;
-		
+		pListThreads->prevproc = NULL;
+		pListThreads->process_id = process_id;
+		pListThreads->threat_id = thread_id;
+		pListThreads->nextproc = NULL;
 	}
 	else {
 		// ---- Existing process 2nd to n thread  ----
 		dr_printf("[DDR] [INFO] Existing process. New thread started.\n");
 
-		// log process/thread info to process-thread file	
-		dr_fprintf(global_fPidThreads, "%s [%u] [%u]\r\n", app_name, dr_get_process_id(), dr_get_thread_id(drcontext));
-				
-		procs = (S_PROCS*)dr_global_alloc(sizeof(S_PROCS));
-		if (first_pid == 0) {
-			procs->start_process_id = dr_get_process_id();
+		if (global_logpath) {
+			debug_print("Using log path %s\n", global_logpath);
 		}
 		else {
-			procs->start_process_id = first_pid;
+			dr_printf("[DDR] [ERROR] [%s:%d] global logpath file not found\n", __FILE__, __LINE__);
 		}
-		procs->prevproc = NULL;
-		procs->process_id = dr_get_process_id();
-		procs->threat_id = dr_get_thread_id(drcontext);
-		procs->nextproc = NULL;
+
+		// log process/thread info to process-thread file	
+		dr_fprintf(global_fPidThreads, "%s [%u] [%u]\r\n", app_name, process_id, thread_id);
+		
+		pListThreads->nextproc = (S_PROCS*)dr_global_alloc(sizeof(S_PROCS));
+#ifdef _DEBUG
+		dr_printf("[DDR] [DEBUG] [MEMOP] allocated memory for sub thread. Memaddr: "PFX" thread_id=%d process_id=%u\n",
+			pListThreads->nextproc, thread_id, process_id);
+#endif
+		pListThreads->nextproc->prevproc = pListThreads;
+		pListThreads = pListThreads->nextproc;
+
+		// is this the first process ?
+		if (*processids == process_id) {
+			pListThreads->start_process_id = process_id;
+		}
+		else {
+			pListThreads->start_process_id = *processids;
+		}
+		pListThreads->process_id = process_id;
+		pListThreads->threat_id = thread_id;
+		pListThreads->nextproc = NULL;
 	}
 
-	//dr_printf("[DDR] [DEBUG] ===========> procs->start_process_id = %u\n", procs->start_process_id);
-
 	if (last_threat_id != 0) {
-		dr_printf("[DDR] [WARNING] This is not the first thread. Multithreaded is not supported, but works in many case.\n");
+		dr_printf("[DDR] [WARNING] This is not the first thread. Multithreaded is not supported, but works in many cases.\n");
 		
 		if (patch_call_set) {
 
@@ -164,7 +169,7 @@ void event_thread_init_trace_instr(void* drcontext)
 		return;
 	}
 	else {
-		first_thread_id = dr_get_thread_id(drcontext);
+		first_thread_id = thread_id;
 		dr_printf("[DDR] [INFO] First thread. Setting main thread id to %d\n", first_thread_id);
 	}
 
@@ -259,11 +264,21 @@ void event_thread_init_trace_instr(void* drcontext)
 	last_threat_id = dr_get_thread_id(drcontext);
 
 	dr_free_module_data(app);
+
+#ifdef _DEBUG
+	dr_printf("\n[DDR] [DEBUG] event_thread_init_trace_instr end.\n");
+#endif
 }
 
 void event_thread_exit_trace_instr(void* drcontext)
 {
-	dr_printf("[DDR] [INFO] Thread with id %d was terminated\n", dr_get_thread_id(drcontext));
+	//S_TRACE_PARA* trace_para_prev;
+	S_PROCS* pListThreads_tmp;
+
+#ifdef _DEBUG
+	dr_printf("\n[DDR] [DEBUG] event_thread_exit_trace_instr start.\n");
+	dr_printf("[DDR] [DEBUG] Thread counter: %u\n", thread_counter);
+#endif
 
 	if (first_thread_id == dr_get_thread_id(drcontext)) {
 
@@ -287,10 +302,52 @@ void event_thread_exit_trace_instr(void* drcontext)
 		fix_comma_in_jsonfile(global_trace_ApiLogfilename);
 		dr_printf("[DDR] [INFO] API trace file fixed.\n");
 
+		dr_global_free(global_trace_LogFilename, MAX_PATH);
+		dr_global_free(global_trace_ApiLogfilename, MAX_PATH);
+
+		/*if (trace_para_set) {
+			trace_para = trace_para_start;
+			while (trace_para) {
+				dr_global_free(trace_para->filename, MAX_FILE_LINE_LEN);
+				trace_para_prev = trace_para;
+				trace_para = trace_para->nexttr;
+				dr_global_free(trace_para_prev, sizeof(S_TRACE_PARA));
+			}
+		}*/
+
 		SYSTEMTIME lt;
 		GetLocalTime(&lt);
 		dr_printf("[DDR] [INFO] Time : %02d:%02d:%02d:%d\n", lt.wHour, lt.wMinute, lt.wSecond, lt.wMilliseconds);
 	}
+	else {
+		dr_printf("[DDR] [INFO] Thread with id %d was terminated\n", dr_get_thread_id(drcontext));
+	}
+
+	// Is this the last living thread ? Free the linked list
+	if (thread_counter == 1) {
+#ifdef _DEBUG
+		dr_printf("[DDR] [DEBUG] [MEMOP] Last living thread (thread_id = %d proccess = %u) reached. Free'ing memory.\n", 
+			dr_get_thread_id(drcontext), dr_get_process_id());
+#endif
+		pListThreads = pListThreads_start;
+		while (pListThreads) {
+			pListThreads_tmp = pListThreads->nextproc;
+#ifdef _DEBUG
+			dr_printf("[DDR] [DEBUG] [MEMOP] free'ing memory: "PFX" thread_id = %d\n", pListThreads, pListThreads->threat_id);
+#endif
+			dr_global_free(pListThreads, sizeof(S_PROCS));
+			pListThreads = pListThreads_tmp;
+		}
+#ifdef _DEBUG
+		dr_printf("[DDR] [DEBUG] [MEMOP] process memory free'ed.\n");
+#endif
+	}
+	thread_counter = thread_counter - 1;
+
+
+#ifdef _DEBUG
+	dr_printf("\n[DDR] [DEBUG] event_thread_exit_trace_instr end.\n");
+#endif
 }
 
 
@@ -328,6 +385,18 @@ void __cdecl process_instr_trace_instr_new(app_pc instr_addr, S_TRACE_PARA* tr)
 		dr_exit_process(0);  // calls exit routines
 	}
 
+#ifdef _DEBUG
+	if (dbgLevel >= 5) {
+		dr_printf("[DDR] [DEBUG] i:0x%x\n", instr_addr_fixed);
+	}
+	/*
+	if (instr_addr_fixed == 0x401924) {
+		dr_printf("[DDR] [DEBUG] -------- Create access violation when process instruction 0x401924. -----------\n");
+		memcpy(NULL, 0xffffffff, 50); // create access violation
+	}
+	*/
+#endif
+
 	if ((instr_addr_fixed >= tr->start) && (instr_addr_fixed <= tr->end)) {
 
 		instr_t instr;
@@ -347,7 +416,7 @@ void __cdecl process_instr_trace_instr_new(app_pc instr_addr, S_TRACE_PARA* tr)
 					unsigned char* disasm_buf = (unsigned char*)dr_global_alloc(sizeof(unsigned char) * disasm_buf_size);
 					instr_disassemble_to_buffer(dr_get_current_drcontext(), &instr, disasm_buf, disasm_buf_size);
 					dr_fprintf(global_trace_fp, "  \"disasm\"  : \"%s\",\n", disasm_buf);
-					dr_global_free(disasm_buf, disasm_buf_size);
+					dr_global_free(disasm_buf, sizeof(unsigned char) * disasm_buf_size);
 
 					log_instr_opnds_trace_instr(global_trace_fp, &instr, &mc, drcontext, 16);
 					instr_free(drcontext, &instr);
@@ -440,7 +509,7 @@ void __cdecl process_instr_trace_instr_new(app_pc instr_addr, S_TRACE_PARA* tr)
 				unsigned char* disasm_buf = (unsigned char*)dr_global_alloc(sizeof(unsigned char) * disasm_buf_size);
 				instr_disassemble_to_buffer(dr_get_current_drcontext(), &instr, disasm_buf, disasm_buf_size);
 				dr_fprintf(global_trace_fp, "  \"disasm\"  : \"%s\",\n", disasm_buf);
-				dr_global_free(disasm_buf, disasm_buf_size);
+				dr_global_free(disasm_buf, sizeof(unsigned char)* disasm_buf_size);
 
 				log_instr_opnds_trace_instr(global_trace_fp, &instr, &mc, drcontext, 16);
 				dr_fprintf(global_trace_fp, "\n");
@@ -478,7 +547,7 @@ static bool lib_is_not_blacklisted_trace_instr(const module_data_t* info) {
 	return TRUE;
 }
 
-static unsigned char* get_byte_string_trace_instr(unsigned char* bytesbuf, size_t bytesread) {
+static unsigned char* get_byte_string_trace_instr(unsigned char* bytesbuf, size_t bytesread, size_t *resultstr_size) {
 
 	if (bytesread < 1) return NULL;
 
@@ -501,25 +570,34 @@ static unsigned char* get_byte_string_trace_instr(unsigned char* bytesbuf, size_
 			dr_snprintf(charstr_tmp++, 2, ".");
 	}
 
-	size_t resultstr_size = strlen(bytestr) + strlen(charstr) + 3 + 1; //3 spaces in snprintf below
-	unsigned char* resultstr = (unsigned char*)dr_global_alloc(sizeof(unsigned char) * resultstr_size);
-	dr_snprintf(resultstr, resultstr_size, "%s   %s", bytestr, charstr);
+	*resultstr_size = strlen(bytestr) + strlen(charstr) + 3 + 1; //3 spaces in snprintf below
+	unsigned char* resultstr = (unsigned char*)dr_global_alloc(sizeof(unsigned char) * (*resultstr_size));
+	if (resultstr) {
+		dr_snprintf(resultstr, *resultstr_size, "%s   %s", bytestr, charstr);
 
-	dr_global_free(bytestr, sizeof(unsigned char) * (bytesread * 3 + 1));
-	dr_global_free(charstr, sizeof(unsigned char) * (bytesread + 1));
+		dr_global_free(bytestr, sizeof(unsigned char) * (bytesread * 3 + 1));
+		dr_global_free(charstr, sizeof(unsigned char) * (bytesread + 1));
 
-	return resultstr;
+		return resultstr;
+	}
+	else {
+		dr_printf("[DDR] [ERROR] Failed to allocate memory in get_byte_string_trace_instr.\n");
+		dr_exit_process(1);
+	}
+	return NULL;
 }
 
 static void log_bytestream_trace_instr(file_t f, unsigned char* bytesbuf, size_t bytesread, app_pc memaddr, uint instr_mem_size) {
 
-	char* bytesstr = get_byte_string_trace_instr(bytesbuf, bytesread);
+	size_t resultstr_size;
+
+	char* bytesstr = get_byte_string_trace_instr(bytesbuf, bytesread, &resultstr_size);
 
 	if (bytesstr) {
 		dr_fprintf(f, "  \"inst_mem_addr\"  : \""PFX"\",\n", memaddr);
 		dr_fprintf(f, "  \"inst_mem_size\"  : \""PFX"\",\n", instr_mem_size);
 		dr_fprintf(f, "  \"inst_mem_data\"  : \"%s\",\n", bytesstr);
-		dr_global_free(bytesstr, strlen(bytesstr) + 1);
+		dr_global_free(bytesstr, resultstr_size);
 	}
 	else {
 		dr_fprintf(f, "  \"inst_mem_addr\"  : \""PFX"\",\n", memaddr);
@@ -531,24 +609,31 @@ static void log_bytestream_trace_instr(file_t f, unsigned char* bytesbuf, size_t
 static bool write_mem_data_trace_instr(file_t f, size_t numbytes, app_pc memaddr, char* json_field_str) {
 	char* bytesbuf, * bytesstr;
 	size_t bytesread;
+	size_t resultstr_size;
 
 	bytesbuf = (char*)dr_global_alloc(sizeof(char) * numbytes);
-	dr_safe_read(memaddr, numbytes, bytesbuf, &bytesread);
+	if (bytesbuf) {
+		dr_safe_read(memaddr, numbytes, bytesbuf, &bytesread);
 
-	bytesstr = get_byte_string_trace_instr(bytesbuf, bytesread);
-	if (bytesstr) {
-		// only add to JSON file if not NULL
-		dr_fprintf(f, ",\n");
-		dr_fprintf(f, "  \"%s\"  : \"%s\"", json_field_str, bytesstr);
-		dr_global_free(bytesstr, sizeof(char) * (strlen(bytesstr) + 1));
-		if (bytesbuf) dr_global_free(bytesbuf, sizeof(char) * numbytes);
-		return TRUE;
+		bytesstr = get_byte_string_trace_instr(bytesbuf, bytesread, &resultstr_size);
+		if (bytesstr) {
+			// only add to JSON file if not NULL
+			dr_fprintf(f, ",\n");
+			dr_fprintf(f, "  \"%s\"  : \"%s\"", json_field_str, bytesstr);
+			dr_global_free(bytesstr, resultstr_size);
+			dr_global_free(bytesbuf, sizeof(char) * numbytes);
+			return TRUE;
+		}
+		else {
+			dr_global_free(bytesbuf, sizeof(char) * numbytes);
+			return FALSE;
+		}
 	}
 	else {
-		if (bytesstr) dr_global_free(bytesstr, sizeof(char) * (strlen(bytesstr) + 1));
-		if (bytesbuf) dr_global_free(bytesbuf, sizeof(char) * numbytes);
-		return FALSE;
+		dr_printf("[DDR] [ERROR] Failed to allocate memory in write_mem_data_trace_instr.");
+		dr_exit_process(1);
 	}
+	return FALSE;
 }
 
 static bool write_mem_to_file_trace_instr(file_t f, ssize_t numbytes, app_pc memaddr) {
@@ -600,7 +685,7 @@ static void log_instr_opnds_trace_instr(file_t f, instr_t* instr, dr_mcontext_t*
 
 		opnd_src0 = instr_get_src(instr, 0);
 
-		if (opnd_is_reg(opnd_src0)) {
+		if (my_opnd_is_reg(opnd_src0)) {
 			reg = opnd_get_reg(opnd_src0);
 			memaddr_src0 = (app_pc)reg_get_value(reg, mc);
 		}
@@ -614,12 +699,12 @@ static void log_instr_opnds_trace_instr(file_t f, instr_t* instr, dr_mcontext_t*
 	if (instr_is_call_indirect(instr)) {
 
 		opnd_src0 = instr_get_src(instr, 0);
-		if (opnd_is_reg(opnd_src0)) {
+		if (my_opnd_is_reg(opnd_src0)) {
 			reg = opnd_get_reg(opnd_src0);
 			memaddr_src0 = (app_pc)reg_get_value(reg, mc);
 		}
 		else {
-			memaddr_src0 = opnd_compute_address(opnd_src0, mc);
+			memaddr_src0 = my_opnd_compute_address(opnd_src0, mc);
 		}
 		write_src_op_to_logfile_trace_instr(f, instr, memaddr_src0, bytesread, numbytes);
 		return;
@@ -629,9 +714,17 @@ static void log_instr_opnds_trace_instr(file_t f, instr_t* instr, dr_mcontext_t*
 	if (instr_is_return(instr)) {
 
 		opnd_src0 = instr_get_src(instr, 0);
-		reg = opnd_get_reg(opnd_src0);
-		memaddr_src0 = (app_pc)reg_get_value(reg, mc);
-		write_src_op_to_logfile_trace_instr(f, instr, memaddr_src0, bytesread, numbytes);
+		if (my_opnd_is_reg(opnd_src0)) {
+			reg = opnd_get_reg(opnd_src0);
+			memaddr_src0 = (app_pc)reg_get_value(reg, mc);
+			write_src_op_to_logfile_trace_instr(f, instr, memaddr_src0, bytesread, numbytes);
+		}
+
+		if (opnd_is_immed(opnd_src0)) {
+			memaddr_src0 = (app_pc) opnd_get_immed_int(opnd_src0);
+			write_src_op_to_logfile_trace_instr(f, instr, memaddr_src0, bytesread, numbytes);
+		}
+
 		return;
 	}
 
@@ -673,7 +766,7 @@ static void log_instr_opnds_trace_instr(file_t f, instr_t* instr, dr_mcontext_t*
 		opnd_src0 = instr_get_src(instr, 0);
 
 		// operant is register
-		if (opnd_is_reg(opnd_src0)) {
+		if (my_opnd_is_reg(opnd_src0)) {
 			reg = opnd_get_reg(opnd_src0);
 			memaddr_src0 = (app_pc)reg_get_value(reg, mc);  //TBD check typecast
 			write_src_op_to_logfile_trace_instr(f, instr, memaddr_src0, bytesread, numbytes);
@@ -681,7 +774,7 @@ static void log_instr_opnds_trace_instr(file_t f, instr_t* instr, dr_mcontext_t*
 		}
 		// anyhing else
 		else {
-			memaddr_src0 = opnd_compute_address(opnd_src0, mc);
+			memaddr_src0 = my_opnd_compute_address(opnd_src0, mc);
 			write_src_op_to_logfile_trace_instr(f, instr, memaddr_src0, bytesread, numbytes);
 			return;
 		}
@@ -695,7 +788,7 @@ static void log_instr_opnds_trace_instr(file_t f, instr_t* instr, dr_mcontext_t*
 		opnd_dst0 = instr_get_src(instr, 1);
 
 		// src operant is register
-		if (opnd_is_reg(opnd_src0)) {
+		if (my_opnd_is_reg(opnd_src0)) {
 			reg = opnd_get_reg(opnd_src0);
 			memaddr_src0 = (app_pc)reg_get_value(reg, mc);  //TBD check typecast
 			dr_fprintf(f, "  \"inst_mem_addr_src0\"     : \""PFX"\"", memaddr_src0);
@@ -704,14 +797,14 @@ static void log_instr_opnds_trace_instr(file_t f, instr_t* instr, dr_mcontext_t*
 		}
 		// src operant is anyhing else
 		else {
-			memaddr_src0 = opnd_compute_address(opnd_src0, mc);
+			memaddr_src0 = my_opnd_compute_address(opnd_src0, mc);
 			dr_fprintf(f, "  \"inst_mem_addr_src0\"     : \""PFX"\"", memaddr_src0);
 			write_mem_data_trace_instr(f, numbytes, memaddr_src0, "inst_mem_addr_src0_data");
 			dr_fprintf(f, ",\n");
 		}
 
 		// dst operant is register
-		if (opnd_is_reg(opnd_dst0)) {
+		if (my_opnd_is_reg(opnd_dst0)) {
 			reg = opnd_get_reg(opnd_dst0);
 			memaddr_dst0 = (app_pc)reg_get_value(reg, mc);  //TBD check typecast
 			dr_fprintf(f, "  \"inst_mem_addr_dst0\"     : \""PFX"\"", memaddr_dst0);
@@ -720,7 +813,7 @@ static void log_instr_opnds_trace_instr(file_t f, instr_t* instr, dr_mcontext_t*
 		}
 		// dst operant is anyhing else
 		else {
-			memaddr_dst0 = opnd_compute_address(opnd_dst0, mc);
+			memaddr_dst0 = my_opnd_compute_address(opnd_dst0, mc);
 			dr_fprintf(f, "  \"inst_mem_addr_dst0\"     : \""PFX"\"", memaddr_dst0);
 			write_mem_data_trace_instr(f, numbytes, memaddr_dst0, "inst_mem_addr_dst0_data");
 			return;
@@ -739,7 +832,7 @@ static void log_instr_opnds_trace_instr(file_t f, instr_t* instr, dr_mcontext_t*
 		opnd_dst0 = instr_get_dst(instr, 0);
 
 		// op is register
-		if (opnd_is_reg(opnd_dst0)) {
+		if (my_opnd_is_reg(opnd_dst0)) {
 			reg = opnd_get_reg(opnd_dst0);
 			memaddr_dst0 = (app_pc)reg_get_value(reg, mc);
 			dr_fprintf(f, "  \"inst_mem_addr_dst0\"  : \""PFX"\"", memaddr_dst0);
@@ -747,7 +840,7 @@ static void log_instr_opnds_trace_instr(file_t f, instr_t* instr, dr_mcontext_t*
 		}
 		// op is not a register
 		else {
-			memaddr_dst0 = opnd_compute_address(opnd_dst0, mc);
+			memaddr_dst0 = my_opnd_compute_address(opnd_dst0, mc);
 			dr_fprintf(f, "  \"inst_mem_addr_dst0\"  : \""PFX"\"", memaddr_dst0);
 			write_mem_data_trace_instr(f, numbytes, memaddr_dst0, "inst_mem_addr_dst0_data");
 		}
@@ -769,7 +862,7 @@ static void log_instr_opnds_trace_instr(file_t f, instr_t* instr, dr_mcontext_t*
 		opnd_src0 = instr_get_src(instr, 0);
 
 		// op is register
-		if (opnd_is_reg(opnd_src0)) {
+		if (my_opnd_is_reg(opnd_src0)) {
 			reg = opnd_get_reg(opnd_src0);
 			memaddr_src0 = (app_pc)reg_get_value(reg, mc);
 			dr_fprintf(f, "  \"inst_mem_addr_src0\"  : \""PFX"\"", memaddr_src0);
@@ -777,7 +870,7 @@ static void log_instr_opnds_trace_instr(file_t f, instr_t* instr, dr_mcontext_t*
 		}
 		// op is not a register
 		else {
-			memaddr_src0 = opnd_compute_address(opnd_src0, mc);
+			memaddr_src0 = my_opnd_compute_address(opnd_src0, mc);
 			dr_fprintf(f, "  \"inst_mem_addr_src0\"  : \""PFX"\"", memaddr_src0);
 			write_mem_data_trace_instr(f, numbytes, memaddr_src0, "inst_mem_addr_src0_data");
 		}
@@ -829,18 +922,21 @@ static void log_mem_at_reg_trace_instr(app_pc memaddr, char* regstr, file_t f) {
 
 	size_t bytesread;
 	size_t bytesbuf_len = 16;
+	size_t resultstr_size;
 	char* bytesstr;
 	char* bytesbuf = (char*)dr_global_alloc(sizeof(char) * bytesbuf_len);
 
 	if (dr_safe_read(memaddr, 16, bytesbuf, &bytesread)) {
 
-		bytesstr = get_byte_string_trace_instr(bytesbuf, bytesread);
-
+		bytesstr = get_byte_string_trace_instr(bytesbuf, bytesread, &resultstr_size);
 		if (bytesstr) {
 			dr_fprintf(f, "  \"%s_ptr_data\"  : \"%s\",\n", regstr, bytesstr);
 			dr_global_free(bytesstr, strlen(bytesstr) + 1);
-			dr_global_free(bytesbuf, bytesbuf_len);
+			dr_global_free(bytesbuf, sizeof(char) * bytesbuf_len);
 			return;
+		}
+		else {
+			dr_global_free(bytesbuf, sizeof(char) * bytesbuf_len);
 		}
 	}
 	dr_fprintf(f, "  \"%s_ptr_data\"  : \"NO_DATA\",\n", regstr);
@@ -860,7 +956,7 @@ static void handler_instr_is_pop(file_t f, instr_t* instr, dr_mcontext_t* mc, si
 
 static void handler_instr_interesting_instr(file_t f, instr_t* instr, dr_mcontext_t* mc, size_t numbytes) {
 	opnd_t op = instr_get_src(instr, 0);
-	app_pc memaddr = opnd_compute_address(op, mc);
+	app_pc memaddr = my_opnd_compute_address(op, mc);
 	size_t bytesread;
 
 	uint instr_mem_size = instr_memory_reference_size(instr);
@@ -877,7 +973,7 @@ static void handler_instr_interesting_instr(file_t f, instr_t* instr, dr_mcontex
 static void handler_all_other_mem_instr(file_t f, instr_t* instr, dr_mcontext_t* mc, size_t numbytes) {
 
 	opnd_t op = instr_get_src(instr, 0);
-	app_pc memaddr = opnd_compute_address(op, mc);
+	app_pc memaddr = my_opnd_compute_address(op, mc);
 	size_t bytesread;
 
 	uint instr_mem_size = instr_memory_reference_size(instr);

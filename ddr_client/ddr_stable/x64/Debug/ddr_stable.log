@@ -1,0 +1,8 @@
+﻿  ddr_helper_functions.c
+  dump_buffer1.c
+  main.c
+  patch_exe.c
+  trace_instr.c
+  Generating Code...
+     Creating library C:\tools\dev\git\DynDataResolver\ddr_client\x64\Debug\ddr_stable.lib and object C:\tools\dev\git\DynDataResolver\ddr_client\x64\Debug\ddr_stable.exp
+  ddr_stable.vcxproj -> C:\tools\dev\git\DynDataResolver\ddr_client\x64\Debug\ddr_stable.dll

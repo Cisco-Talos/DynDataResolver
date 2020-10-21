@@ -4,20 +4,11 @@ Version 1.0 beta
 
 ---
 
-HINT:
+New beta version released.
 
-29.Sept 2020:
+For now, we are maintaining it in the 'version-101-beta' branch.
 
-We are going to release a new version soon (1-3 weeks). 
-New version will have an improved installer and new debugging features
-Plus a few nice new IDA plugin workflow and usage features, stay tuned.... :)
-
-Caveat:
-There is a bug in the underlaying dynamorio framework which is investigated 
-in the moment in AMD CPUs (at least the Ryzen ones). 32bit samples are crashing.
-64 works fine.
-
-https://github.com/DynamoRIO/dynamorio/issues/4091
+You can find an overview of the 1.0.1 features here (at 20 Oct 17:00 CET): https://blog.talosintelligence.com/2020/10/ddr101beta.html
 
 ---
 

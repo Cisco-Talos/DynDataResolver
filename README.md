@@ -5,7 +5,9 @@
 Release date Version 1.0.2 beta: 17th of December 2020 15:00 CET
 
 New features:
+
 Start address - The instrumentation/analysis starts at this address
+
 Break address - The instrumentation and execution of the sample process stops here
 
 You can find a detailed description of the 1.0.2 features here at release time 

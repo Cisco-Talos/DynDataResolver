@@ -5,13 +5,13 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <Link>
-      <AdditionalLibraryDirectories>C:\tools\DynamoRIO-Windows-8.0.0-1\lib32;C:\tools\DynamoRIO-Windows-8.0.0-1\ext\lib32\release;C:\tools\DynamoRIO-Windows-8.0.0-1\lib32\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>dynamorio.lib;drmgr.lib;drreg.lib;drx.lib;drsyms.lib;drcontainers.lib;ntdll_imports.lib;drwrap.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\tools\dev\git\dynamorioX32\build\lib32;C:\tools\dev\git\dynamorioX32\build\ext\lib32\release;C:\tools\dev\git\dynamorioX32\build\lib32\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>dynamorio.lib;drmgr.lib;drreg.lib;drx.lib;drsyms.lib;drcontainers.lib;ntdll_imports.lib;drwrap.lib;</AdditionalDependencies>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
     </Link>
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\tools\DynamoRIO-Windows-8.0.0-1\ext\include;C:\tools\DynamoRIO-Windows-8.0.0-1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\tools\dev\git\dynamorioX32\build\ext\include;C:\tools\dev\git\dynamorioX32\build\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>

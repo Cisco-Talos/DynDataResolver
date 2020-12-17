@@ -3,7 +3,7 @@
  
 DDR IDA Pro Plug-in: Dynamic Data Resolver(DDR) backend DLL
 
-Version 1.0 beta
+Version 1.1 beta
 
 Copyright(C) 2020 Cisco Talos
 Author: Holger Unterbrink(hunterbr@cisco.com) Twitter: @hunterbr72
@@ -35,6 +35,7 @@ DynamoRIO: http://dynamorio.org/
 
 // Globals
 int cmd_opts;
+unsigned int dbgLevel;
 int tls_idx;
 int tls_idx2;
 int tls_idx3;
@@ -44,7 +45,6 @@ size_t oep_diff;
 size_t ref_flags;
 size_t from_addr = 0;
 size_t to_addr = 0;
-size_t break_addr = 0;
 size_t inst_count = MAX_INSTR_COUNT;
 size_t inst_num = 0;
 bool light_trace_only = FALSE;
@@ -71,7 +71,9 @@ bool trace_para_set = FALSE;
 S_TRACE_PARA *trace_para = NULL;
 S_TRACE_PARA *trace_para_start = NULL;
 
-S_PROCS *procs = NULL;
+S_PROCS* pListThreads = NULL;
+S_PROCS* pListThreads_start = NULL;
+unsigned int thread_counter;
 file_t global_fPidThreads;
 char* global_pidThreadsFilename = "ddr_threads";
 char* global_pidThreadsFullFilename;
@@ -83,7 +85,6 @@ file_t global_f = NULL;
 char *global_trace_LogFilename;
 char *global_trace_ApiLogfilename;
 char *global_client_path;
-//char globalExecCounterFilename[] = "ddr_exec_counter.txt";
 file_t global_trace_fp = NULL;
 file_t global_trace_api_fp = NULL;
 file_t global_exec_counter_fp = NULL;
@@ -97,29 +98,101 @@ thread_id_t first_thread_id = 0;
 bool loop_set = false;
 size_t loop_addr = (size_t) NULL;
 
+bool startaddr_set = false;
+size_t startaddr = (size_t) NULL;
+
+bool breakaddr_set = false;
+size_t breakaddr = (size_t)NULL;
+
+TCHAR szName[]      = TEXT("DDRProcesscounter");  // shared memory object (used in ddr_helper_functions.c)
+TCHAR szProcIDs[]   = TEXT("DDRProcessIDs");      // shared memory object (used in ddr_helper_functions.c)
+TCHAR szProcNames[] = TEXT("DDRProcessNamess");   // shared memory object (used in ddr_helper_functions.c)
+TCHAR szLogPath[]   = TEXT("DDRLogpath");         // shared memory object (used in ddr_helper_functions.c)
+process_id_t* processids;
+char* procnames;
+char* global_logpath;
+
 DR_EXPORT void dr_client_main(client_id_t id, int argc, const char* argv[])
 {
+	debug_print("dr_client_main started.\n\n");
+
+#ifdef _DEBUG
+	dr_printf("-------------------------------------- Debugging Hint -------------------------------------------\n");
+	dr_printf("Access violations from 'dynamorio!safe_read_asm_xxx' are expected and can be ignored in WinDbg.\n");
+	dr_printf("They are caused by the way DynamoRio has implemented these functions.\n");
+	dr_printf("They are handled by DynamoRio internally. Just proceed (F5) if something like below happens:\n\n");
+	dr_printf("(1df0.1a28) : Access violation - code c0000005(first chance)\n");
+	dr_printf("	 First chance exceptions are reported before any exception handling.\n");
+	dr_printf("	 This exception may be expected and handled.\n");
+	dr_printf("	 dynamorio!safe_read_asm_pre\n");
+	dr_printf("------------------------------------------------------------------------------------------------\n\n");
+#endif
+
 	char* stmp;
+	char* stmp2;
 	size_t exec_bytes_read = 0;
 	WINPATHCCHAPI HRESULT RemoveFilenameRes;
 	
-	dr_set_client_name("DynamoRIO DDR tracer", "hunterbr@cisco.com");
+	dbgLevel = 0;
+	thread_counter = 0; // number of threads running. Used to check when we can free global memory (process centric)
+
+	dr_set_client_name("Dynamic Data Resolver", "hunterbr@cisco.com");
 	
 	drmgr_init();
 	drwrap_init();
 	my_id = id;
 
+	// in case we are going to use a logfile in the future
+	// dr_log(NULL, LOG_ALL, 1, "Client initializing...\n"); 
+	debug_print("Start initalizing DynamoRio Client (ddr.dll)\n");
+
+	// Set process counter and PID shared memory
+	int Counter = IncProcCounter();
+	processids = getSharedProcessIDs(processids);
+	*(processids + Counter - 1) = dr_get_process_id();
+	*(processids + Counter    ) = 0;
+	debug_print("Saved PID %u in processids + %u\n", *(processids + Counter - 1), Counter - 1);
+
+	// Set process names shared memory
+	procnames = getSharedProcessNames(procnames);
+	stmp2 = procnames + ((long long) Counter - 1) * MAX_PROCESSNAME;
+	CopyMemory((PVOID)stmp2, dr_get_application_name(), MAX_PROCESSNAME * sizeof(char));
+	*(stmp2 + MAX_PROCESSNAME - 1) = 0;
+	debug_print("Saved Processname %s in processnames + %u\n", stmp2, ((long long) Counter - 1) * MAX_PROCESSNAME);
+
+	// Set disassembler syntax to Intel style
 	disassemble_set_syntax(DR_DISASM_INTEL);
 
+	// Enable console output
 	dr_enable_console_printing();
 
-	//dr_log(NULL, LOG_ALL, 1, "Client initializing...\n");
 #ifdef X86_64
-	dr_printf("\n[DDR] [INFO] DDR Client DLL x64 Version 1.00 beta initializing...\n");
+#ifdef _DEBUG
+	dr_messagebox("New DDR instance started. Please attach windbg (\"C:\\tools\\dev\\WinDbg (x64-dynrio)\") to the sample process (PID: %u) now. Then click OK."
+		, dr_get_process_id());
+#endif
+	dr_printf("\n[DDR] [INFO] DDR Client DLL x64 version %s initializing...\n", DDR_VERSION);
 #else
-	dr_printf("\n[DDR] [INFO] DDR Client DLL x32 Version 1.0 beta initializing...\n");
+#ifdef _DEBUG
+	dr_messagebox("New DDR instance started. Pls attach windbg (\"C:\\tools\\dev\\WinDbg (x32-dynrio)\") to the sample process (PID: %u) now. Then click OK."
+		, dr_get_process_id());
+#endif
+	dr_printf("\n[DDR] [INFO] DDR Client DLL x32 Version %s initializing...\n", DDR_VERSION);
 #endif
 
+	// Init global_logpath and let it point to shared memory object
+	// We need shared memory because every process which is launched
+	// by the sample will initalize a new ddr.dll instance,
+	// which is a new process. In other words all objects we need in
+	// all instances need to be shared memeory.
+	global_logpath = getSharedLogpath(global_logpath);
+
+	if(global_logpath == NULL) {
+		dr_printf("[DDR] [ERROR] Failed to open global log path.");
+		dr_exit_process(1);
+	}	
+	
+	// get client library name (DDR32/64 DLL)
 	global_client_path = _strdup(dr_get_client_path(id));
 	stmp = strrchr(global_client_path, '\\');
 	if (stmp != NULL) {
@@ -139,18 +212,20 @@ DR_EXPORT void dr_client_main(client_id_t id, int argc, const char* argv[])
 	// Parse cmd line arguments. TBD: more input checks.
 	cmd_opts = parse_cmd_opt();
 
-	// Register callback functions for events
+	// ---- Register callback functions for events start ----
+	// These functions are called when the corrosponding event occurs
+	// e.g. a new thread is started -> event_thread_init_trace_instr
 
-	// Start normal trace and log everything for all instructions
+	// Start trace 
 	if (cmd_opts & CmdOpt_NormalTrace) {
 		dr_register_exit_event(event_exit);
-		drmgr_register_module_load_event(event_module_load_trace_instr);
-		drmgr_register_bb_instrumentation_event(NULL, event_bb_instr_global, NULL);
-		drmgr_register_thread_init_event(event_thread_init_trace_instr);
-		drmgr_register_thread_exit_event(event_thread_exit_trace_instr);
+		drmgr_register_module_load_event(event_module_load_trace_instr);			// executed on e.g. DLL load
+		drmgr_register_bb_instrumentation_event(NULL, event_bb_instr_global, NULL); // executed on every basic block
+		drmgr_register_thread_init_event(event_thread_init_trace_instr);			// executed on thread initalisation
+		drmgr_register_thread_exit_event(event_thread_exit_trace_instr);			// executed on process exit 
 	}
 	// Dump memory buffer stored in operant n at programm counter
-	else if (cmd_opts & CmdOpt_DumpBuffer || cmd_opts & CmdOpt_Patch_EFLAG || cmd_opts & CmdOpt_Patch_NOP || CmdOpt_Patch_CALL) {
+	else if ((cmd_opts & CmdOpt_DumpBuffer) || (cmd_opts & CmdOpt_Patch_EFLAG) || (cmd_opts & CmdOpt_Patch_NOP) || cmd_opts & CmdOpt_Patch_CALL) {
 		dr_register_exit_event(event_exit);
 		drmgr_register_bb_instrumentation_event(NULL, event_bb_instr_global, NULL);
 		drmgr_register_thread_init_event(event_thread_init_global);
@@ -163,8 +238,13 @@ DR_EXPORT void dr_client_main(client_id_t id, int argc, const char* argv[])
 		dr_printf("[DDR] [ERROR] Unexpected command line parameter. This should not happen.\n");
 		dr_exit_process(1);
 	}
+	// ---- Register callback functions for events end ----
 
-	// Init TLS helper vars
+#ifdef _DEBUG
+	dr_printf("\n[DDR] [DEBUG] dr_client_main callbacks set.\n");
+#endif
+
+	// Init TLS helper vars. TBD: maybe we get rid of that in a future version.
 	tls_idx = drmgr_register_tls_field();
 	DR_ASSERT(tls_idx > -1);
 	tls_idx2 = drmgr_register_tls_field();
@@ -173,6 +253,7 @@ DR_EXPORT void dr_client_main(client_id_t id, int argc, const char* argv[])
 	DR_ASSERT(tls_idx > -1);
 
 	dr_printf("[DDR] [INFO] Initalization done.\n");
+	debug_print("dr_client_main end.\n\n");
 }
 
 int parse_cmd_opt() {
@@ -209,7 +290,12 @@ int parse_cmd_opt() {
 					i += 1;
 				}
 				break;
-
+#ifdef _DEBUG
+			case 'd':
+				sscanf_s(argv[1], "%u", &dbgLevel);
+				dr_printf("[DDR] [DEBUG] Debug verbose level set to %u", dbgLevel);
+				break;
+#endif
 			// Help
 			case 'h':
 				usage();
@@ -407,13 +493,230 @@ int parse_cmd_opt() {
 }
 
 void event_exit(void)
-{
+{ 
+	debug_print("event_exit start. Process PID %u (%s)\n", dr_get_process_id(), dr_get_application_name());
+
+	S_DUMP_PARA* dump_para_prev;
+	S_TRACE_PARA* trace_para_prev;
+	P_EFLAG_PARA* pa_flag_para_tmp;
+	P_NOP_PARA* pa_nop_para_tmp;
+	P_CALL_PARA* pa_call_para_tmp;
+
+	unsigned int i, n;
+	char logpath[MAX_PATH];
+	bool timeout = TRUE;
+	HANDLE hRunningProc;
+	char* procname = NULL;
+	process_id_t mypid = dr_get_process_id();
+	file_t fPidsfile;
+	char pidsfilename[MAX_PATH]; // e.g. "...\ddr_processtrace.txt" 
+	module_data_t* app;
+
+	if (dump_buffer_set) {
+		debug_print("dump_buffer_set detected\n");
+			dump_para = dump_para_start;
+			while (dump_para) {
+				debug_print("freeing dump_para list memory at "PFX"\n", dump_para);
+				// First free the filename memory...
+				dr_global_free(dump_para->filename, MAX_FILE_LINE_LEN);
+				dump_para_prev = dump_para;
+				// ... then the whole dump parameter linked list structure
+				dump_para = dump_para->nextdp;
+				dr_global_free(dump_para_prev, sizeof(S_DUMP_PARA));
+			}
+			debug_print("free'ed dump_para list memory.\n");
+		}
+
+	// free patch EFLAGS parameter linked list if it exists
+	pa_flag_para = pa_flag_para_start;
+	while (pa_flag_para) {
+		debug_print("freeing pa_flag_para list memory at "PFX"\n", pa_flag_para);
+		pa_flag_para_tmp = pa_flag_para->nextpe;
+		dr_global_free(pa_flag_para, sizeof(P_EFLAG_PARA));
+		pa_flag_para = pa_flag_para_tmp;
+		debug_print("free'ed pa_flag_para list memory.\n");
+	}
+
+	//free patch NOP parameter linked list if exists
+	pa_nop_para = pa_nop_para_start;
+	while (pa_nop_para) {
+		debug_print("freeing pa_nop_para list memory at "PFX"\n", pa_nop_para);
+		pa_nop_para_tmp = pa_nop_para->nextpa;
+		dr_global_free(pa_nop_para, sizeof(P_NOP_PARA));
+		pa_nop_para = pa_nop_para_tmp;
+		debug_print("free'ed pa_nop_para list memory.\n");
+	}
+
+	//pa_call_para->nextcp = dr_global_alloc(sizeof(P_CALL_PARA));
+	pa_call_para = pa_call_para_start;
+	while (pa_call_para) {
+		debug_print("freeing pa_call_para list memory at "PFX"\n", pa_call_para);
+		pa_call_para_tmp = pa_call_para->nextcp;
+		dr_global_free(pa_call_para, sizeof(P_CALL_PARA));
+		pa_call_para = pa_call_para_tmp;
+		debug_print("free'ed pa_call_para list memory.\n");
+	}
+
+	if (trace_para_set) {
+		trace_para = trace_para_start;
+		while (trace_para) {
+			dr_global_free(trace_para->filename, MAX_FILE_LINE_LEN);
+			trace_para_prev = trace_para;
+			trace_para = trace_para->nexttr;
+			dr_global_free(trace_para_prev, sizeof(S_TRACE_PARA));
+		}
+	}
+
 	// unregister TLS field vars
 	drmgr_unregister_tls_field(tls_idx);
 	drmgr_unregister_tls_field(tls_idx2);
 	drmgr_unregister_tls_field(tls_idx3);
+
 	drwrap_exit();
+	
+	// Process tracing monitoring and clean up
+	if (trace_para_set) {
+		processids = getSharedProcessIDs(processids);
+		procnames = getSharedProcessNames(procnames);
+
+		// Are we in the main process ?
+		if (*processids == mypid) {
+			dr_sleep(1000); // sleep one second to wait for other processes getting initalized, in case the sample started further processes.
+		}
+
+		// We are the last process running ?
+		if (DecProcCounter() == 0) {
+			debug_print("This is the last process running. No need to kill anything.\n");
+
+			// Are we in the main process ? Write Process file to disk.
+			if (*processids == mypid) {
+				dr_printf("[DDR] [INFO] Main process PID %u (%s) process exit function reached. Writing process log file to disk.\n", mypid, procnames);
+				app = dr_get_main_module();
+
+				if (getLogFilePath(app->full_path, logpath) == NULL) {
+					dr_printf("[DDR] [ERROR] [%s:%d] Failed to extract logpath from log filename\n.", __FILE__, __LINE__);
+					dr_exit_process(1);
+				}
+				dr_free_module_data(app);
+				debug_print("Using log path %s\n", logpath);
+
+				dr_snprintf(pidsfilename, MAX_PATH, "%sddr_processtrace.txt", logpath);
+				dr_printf("[DDR] [INFO] Writing process info to: %s\n", pidsfilename);
+
+				fPidsfile = dr_open_file(pidsfilename, DR_FILE_WRITE_OVERWRITE);
+				if (fPidsfile == INVALID_FILE) {
+					dr_printf("[DDR] [ERROR] [%s:%d] Failed to open process log file: %s\n", pidsfilename, __FILE__, __LINE__);
+					dr_exit_process(1);
+				}
+
+				for (n = 0; n < MAX_PROCESSES; n++) {
+					if (*(processids + n) != 0) {
+						procname = procnames + ((long long)n * MAX_PROCESSNAME);
+						debug_print("writing processes to processfile: PID: %u (%s)\n", *(processids + n), procname);
+						dr_fprintf(fPidsfile, "%s [%u]\r\n", procname, *(processids + n));
+					}
+				}
+				dr_close_file(fPidsfile);
+				drmgr_exit();
+				return;
+			}
+			else {
+				// Strange, it is the last process but it is not the main process ?
+				dr_printf("[DDR] [INFO] Process PID %u (%s) process exit function reached. Writing process log file to disk.\n", mypid, procnames);
+				dr_printf("[DDR] [INFO] This [PID %u (%s)] is not the main process, but the last process which was running.\n", mypid, procnames);
+				drmgr_exit();
+				return;
+			}
+		}
+		else {
+			// Are we in the main process but it is not the last process running ? Wait and then kill the other processes.
+			if (*processids == mypid) {
+				dr_printf("[DDR] [INFO] Main process PID %u (%s) process exit function reached. Waiting for other processes to exit.\n", mypid, procnames);
+				app = dr_get_main_module();
+
+				if (getLogFilePath(app->full_path, logpath) == NULL) {
+					dr_printf("[DDR] [ERROR] [%s:%d] Failed to extract logpath from log filename\n.", __FILE__, __LINE__);
+					dr_exit_process(1);
+				}
+				dr_free_module_data(app);
+				debug_print("Using log path %s\n", logpath);
+
+				dr_snprintf(pidsfilename, MAX_PATH, "%sddr_processtrace.txt", logpath);
+				dr_printf("[DDR] [INFO] Writing process info to: %s\n", pidsfilename);
+
+				fPidsfile = dr_open_file(pidsfilename, DR_FILE_WRITE_OVERWRITE);
+				if (fPidsfile == INVALID_FILE) {
+					dr_printf("[DDR] [ERROR] [%s:%d] Failed to open process log file: %s\n", pidsfilename, __FILE__, __LINE__);
+					dr_exit_process(1);
+				}
+
+				for (n = 0; n < MAX_PROCESSES; n++) {
+					if (*(processids + n) != 0) {
+						procname = procnames + ((long long)n * MAX_PROCESSNAME);
+						debug_print("writing processes to processfile: PID: %u (%s)\n", *(processids + n), procname);
+						dr_fprintf(fPidsfile, "%s [%u]\r\n", procname, *(processids + n));
+					}
+				}
+				dr_close_file(fPidsfile);
+
+				// There are still other processes running
+				for (i = 0; i <= MAX_SEC_TO_WAIT_FOR_PROCS; i++) {
+					// Lets wait for the running processes
+					if (GetProcCounter() == 0) {
+						dr_printf("[DDR] [INFO] All processes launched by the sample were terminated before reaching timeout.\n");
+						timeout = FALSE;
+						break;
+					}
+					else {
+						dr_printf("[DDR] [INFO] waiting for other processes to exit.\n");
+					}
+					dr_sleep(1000); // waiting for 1sec before next check.
+				}
+
+				if (timeout) {
+					// Timeout while waiting for processes to exit. Some Processes are still running, we are killing them now.
+					dr_printf("[DDR] [INFO] Time out reached. Some processes launched by the main process are still running. Trying to terminate them...\n");
+					// killing up to MAX_PROCESSES processes which are still running
+					for (n = 0; n < MAX_PROCESSES; n++) {
+						if (*(processids + n) != 0) {
+							if (*(processids + n) == mypid) {
+								// don't kill yourself (main process)
+								continue;
+							}
+							else {
+								// kill all other processes the main process has started
+								procname = procnames + ((long long)n * MAX_PROCESSNAME);
+								if (procname == NULL) {
+									procname = "Process name not found";
+								}
+								dr_printf("[DDR] [INFO] Trying to kill PID: %u (%s)\n", *(processids + n), procname);
+
+								if (hRunningProc = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, TRUE, (DWORD) * (processids + n))) {
+									if (TerminateProcess(hRunningProc, 0)) {
+										dr_printf("[DDR] [INFO] PID: %u (%s) successfully terminated\n", *(processids + n), procname);
+									}
+									else {
+										dr_printf("[DDR] [WARNING] Failed to terminate PID: %u (%s) maybe still running.\n", *(processids + n), procname);
+									}
+									CloseHandle(hRunningProc);
+								}
+								else {
+									dr_printf("[DDR] [WARNING] Failed to open PID: %u (%s) for terminating it, maybe still running.\n", *(processids + n), procname);
+								}
+							}
+						}
+						else {
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	
 	drmgr_exit();
+
+	debug_print("event_exit end.\n");
 }
 
 bool parse_cfgfile(char* filename) {
@@ -447,23 +750,33 @@ bool parse_cfgfile(char* filename) {
 			switch (tolower(line[0])) {
 			// Toggle EFLAG option
 			case 't':
-				if (pa_flag_para) { // Is there already a list entry ?
-					pa_flag_para->nextpe = dr_global_alloc(sizeof(P_EFLAG_PARA));
-					pa_flag_para = pa_flag_para->nextpe;
-					// Init struct
-					pa_flag_para->patch_eflag_flag_str = NULL;
-					pa_flag_para->patch_eflag_flag = 0;
-					pa_flag_para->patch_eflag_PC = 0;
-					pa_flag_para->nextpe = NULL;
+				if (pa_flag_para) { // Is there already a list entry ?					
+					if (pa_flag_para->nextpe = dr_global_alloc(sizeof(P_EFLAG_PARA))) {
+						pa_flag_para = pa_flag_para->nextpe;
+						// Init struct
+						pa_flag_para->patch_eflag_flag_str = NULL;
+						pa_flag_para->patch_eflag_flag = 0;
+						pa_flag_para->patch_eflag_PC = 0;
+						pa_flag_para->nextpe = NULL;
+					}
+					else {
+						dr_printf("[DDR] [ERROR] Failed to allocate memory for pa_flag_para.");
+						dr_exit_process(1);
+					}
 				}
 				else { // first list entry
-					pa_flag_para = dr_global_alloc(sizeof(P_EFLAG_PARA));
-					pa_flag_para_start = pa_flag_para;
-					// Init struct
-					pa_flag_para->patch_eflag_flag_str = NULL;
-					pa_flag_para->patch_eflag_flag = 0;
-					pa_flag_para->patch_eflag_PC = 0;
-					pa_flag_para->nextpe = NULL;
+					if (pa_flag_para = dr_global_alloc(sizeof(P_EFLAG_PARA))) {
+						pa_flag_para_start = pa_flag_para;
+						// Init struct
+						pa_flag_para->patch_eflag_flag_str = NULL;
+						pa_flag_para->patch_eflag_flag = 0;
+						pa_flag_para->patch_eflag_PC = 0;
+						pa_flag_para->nextpe = NULL;
+					}
+					else {
+						dr_printf("[DDR] [ERROR] Failed to allocate memory for first pa_flag_para.");
+						dr_exit_process(1);
+					}
 				}
 				if (!parse_patch_flag_line(line + 2)) {
 					dr_printf("[DDR] [ERROR] [EFLAG] Parsing line %d in config file failed.\n",i);
@@ -565,7 +878,7 @@ bool parse_cfgfile(char* filename) {
 					dr_exit_process(1);
 				}
 				break;
-
+			// trace instructions
 			case 'l':
 				if (trace_para) { // Is there already a list entry ?
 					trace_para->nexttr = dr_global_alloc(sizeof(S_TRACE_PARA));
@@ -574,7 +887,6 @@ bool parse_cfgfile(char* filename) {
 					trace_para->start = 0;
 					trace_para->end = 0;
 					trace_para->max_instr = 0;
-					trace_para->breakaddress = 0;
 					trace_para->light_trace_only = FALSE;
 					trace_para->filename = NULL;
 					trace_para->nexttr = NULL;
@@ -586,7 +898,6 @@ bool parse_cfgfile(char* filename) {
 					trace_para->start				= 0;
 					trace_para->end					= 0;
 					trace_para->max_instr			= 0;
-					trace_para->breakaddress		= 0;
 					trace_para->light_trace_only	= FALSE;
 					trace_para->filename			= NULL;
 					trace_para->nexttr				= NULL;		
@@ -602,6 +913,24 @@ bool parse_cfgfile(char* filename) {
 			case 'b':
 				if (!parse_loop_line(line + 2, i)) {
 					dr_printf("[DDR] [ERROR] [TRACE] Parsing line %d in config file failed.\n", i);
+					usage();
+					dr_exit_process(1);
+				}
+				break;
+
+			// break address 
+			case 'a':
+				if (!parse_breakaddr_line(line + 2, i)) {
+					dr_printf("[DDR] [ERROR] [BREAKADDR] Parsing line %d in config file failed.\n", i);
+					usage();
+					dr_exit_process(1);
+				}
+				break;
+			
+			// start address 
+			case 's':
+				if (!parse_startaddr_line(line + 2, i)) {
+					dr_printf("[DDR] [ERROR] [BREAKADDR] Parsing line %d in config file failed.\n", i);
 					usage();
 					dr_exit_process(1);
 				}
@@ -643,6 +972,22 @@ bool parse_loop_line(char* line, unsigned int linenr) {
 	return true;
 }
 
+bool parse_startaddr_line(char* line, unsigned int linenr) {
+
+	line[PATCH_ADDR_SIZE] = '\0'; // remove all comments if there are any
+	startaddr = (size_t)strtoull(line, NULL, 16);
+    startaddr_set = true;
+	return true;
+}
+
+bool parse_breakaddr_line(char* line, unsigned int linenr) {
+
+	line[PATCH_ADDR_SIZE] = '\0'; // remove all comments if there are any
+	breakaddr = (size_t)strtoull(line, NULL, 16);
+	breakaddr_set = true;
+	return true;
+}
+
 bool parse_patch_flag_line(char* line) {
 
 	bool parafound = FALSE;
@@ -653,6 +998,8 @@ bool parse_patch_flag_line(char* line) {
 	line[4 + PATCH_ADDR_SIZE] = '\0'; // remove all comments if there are any
 
 	dr_sscanf(line, "%s %s\n", flagname, addr);
+	flagname[2]               = '\0';
+	addr[PATCH_ADDR_SIZE]     = '\0';
 
 	pa_flag_para->patch_eflag_flag_str = strtoupper(flagname);
 
@@ -716,6 +1063,8 @@ bool parse_patch_nop_line(char* line) {
 	char nop_end_str[PATCH_ADDR_SIZE + 1];
 
 	dr_sscanf(line, "%s %s\n", nop_start_str, nop_end_str);
+	nop_start_str[PATCH_ADDR_SIZE] = '\0';
+	nop_end_str[PATCH_ADDR_SIZE]   = '\0';
 
 	pa_nop_para->patch_nop_start_PC = (size_t)strtoull(nop_start_str, NULL, 16);
 	pa_nop_para->patch_nop_end_PC = (size_t)strtoull(nop_end_str, NULL, 16);
@@ -735,6 +1084,8 @@ bool parse_patch_call_line(char* line) {
 	char call_ret_str[PATCH_ADDR_SIZE + 1];
 
 	dr_sscanf(line, "%s %s\n", call_func_str, call_ret_str);
+	call_func_str[PATCH_ADDR_SIZE] = '\0';
+	call_ret_str[PATCH_ADDR_SIZE]  = '\0';
 
 	pa_call_para->patch_call_func_PC = (size_t)strtoull(call_func_str, NULL, 16);
 	pa_call_para->patch_call_ret = (size_t)strtoull(call_ret_str, NULL, 16);
@@ -799,46 +1150,78 @@ bool parse_dump_buffer_line(char* line, unsigned int linenr) {
 
 	if (dump_para->sizePC && dump_para->sizeOp && dump_para->bufferPC && dump_para->bufferOp && dump_para->dumpPC && dump_para->filename) {
 		dump_buffer_set = TRUE;
+		dr_global_free(sizePC,   MAX_FILE_LINE_LEN);
+		dr_global_free(sizeOp,   MAX_FILE_LINE_LEN);
+		dr_global_free(bufferPC, MAX_FILE_LINE_LEN);
+		dr_global_free(bufferOp, MAX_FILE_LINE_LEN);
+		dr_global_free(dumpPC,   MAX_FILE_LINE_LEN);
 		return TRUE;
 	}
 
+	dr_global_free(sizePC, MAX_FILE_LINE_LEN);
+	dr_global_free(sizeOp, MAX_FILE_LINE_LEN);
+	dr_global_free(bufferPC, MAX_FILE_LINE_LEN);
+	dr_global_free(bufferOp, MAX_FILE_LINE_LEN);
+	dr_global_free(dumpPC, MAX_FILE_LINE_LEN);
 	return FALSE;
 }
 
+void trace_para_sanity_check(S_TRACE_PARA* trace_para, unsigned int linenr) {
+
+	// is start-end a valid range ?
+	if (trace_para->start > trace_para->end) {
+		dr_printf("[DDR] [ERROR] Configuration file error (Line %d): Trace start parameter is larger than the end parameter.\n", linenr);
+		dr_abort();
+	}
+}
+
 bool parse_trace_line(char* line, unsigned int linenr) {
+
 	char* stmp;
 	char  stmp2[MAX_PATH];
+	int parse_failed_pos = 0;
+	// make sure you free these global allocs after use
 	char* start				    = dr_global_alloc(MAX_FILE_LINE_LEN);
 	char* end				    = dr_global_alloc(MAX_FILE_LINE_LEN);
 	char* max_instr			    = dr_global_alloc(MAX_FILE_LINE_LEN);
-	char* breakaddress		    = dr_global_alloc(MAX_FILE_LINE_LEN);
 	char* loc_light_trace_only	= dr_global_alloc(MAX_FILE_LINE_LEN);
 	char* filename			    = dr_global_alloc(MAX_FILE_LINE_LEN);
 
-	//e.g. line = L 401000 482000 20000 na TRUE "C:\Users\test\Documents\test\test\lighttraceiiii.json"
-	//or   line = L 401000 482000 20000 na TRUE lighttraceiiii.json
+	//            # start  end    max.instr  lighttrace filename (the last in the list will be used)
+	//e.g. line = L 401000 482000 20000      TRUE       "C:\Users\test\Documents\test\test\lighttraceiiii.json"
+	//or   line = L 401000 482000 20000      TRUE       lighttraceiiii.json
+
 	char format[100];
-	dr_snprintf(format, 100, "%s%d%s", "%s %s %s %s %s \"%", MAX_TRACE_FILENAME, "[^\"]");  // -> e.g. '%s %s %s %s %s "%256[^"]"'
-	dr_sscanf(line, format, start, end, max_instr, breakaddress, loc_light_trace_only, filename);
+	dr_snprintf(format, 100, "%s%d%s", "%s %s %s %s \"%", MAX_TRACE_FILENAME, "[^\"]");  // -> e.g. '%s %s %s %s %s "%256[^"]"'
+	dr_sscanf(line, format, start, end, max_instr, loc_light_trace_only, filename);
 
 	if (!strcmp(filename,"")) {
-		dr_snprintf(format, 100, "%s", "%s %s %s %s %s %s");
-		dr_sscanf(line, format, start, end, max_instr, breakaddress, loc_light_trace_only, filename);
+		dr_snprintf(format, 100, "%s", "%s %s %s %s %s");
+		dr_sscanf(line, format, start, end, max_instr, loc_light_trace_only, filename);
+	}
+
+	// filename (last field) will be uninitalized aka not ascii if config file is missing a parameter
+	if (!isascii(*filename)) {
+		dr_printf("[DDR] [ERROR] Configuration file format error in line %d. \n", linenr);
+		dr_printf("[DDR] [ERROR] At least one parameter field is missing or a non ASCII character found.\n");
+		dr_abort();
 	}
 
 	check_strlen(start					, sizeof(size_t) * 2, "Start PC field in config file is too long", linenr);
 	check_strlen(end					, sizeof(size_t) * 2, "End PC field in config file is too long", linenr);
 	check_strlen(max_instr				, sizeof(size_t) * 2, "Max. instructions field in config file is too long", linenr);
-	check_strlen(breakaddress			, sizeof(size_t) * 2, "Breakaddress field in config file is too long", linenr);
 	check_strlen(loc_light_trace_only	, strlen("FALSE")   , "Light trace only field in config file is too long", linenr);
 	check_strlen(filename				, MAX_TRACE_FILENAME, "Dump filename field in config file is too long", linenr);
 
+	// convert string values and save them into the global trace_para struct
 	trace_para->start			= (size_t)strtoull(start, NULL, 16);
 	trace_para->end				= (size_t)strtoull(end  , NULL, 16);
 	trace_para->max_instr		= (size_t)strtoull(max_instr, NULL, 16);
-	trace_para->breakaddress	= (size_t)strtoull(breakaddress, NULL, 16);
 	trace_para->filename		= escape_filename(filename);
 
+	trace_para_sanity_check(trace_para, linenr);
+
+	// Light or full trace ?
 	loc_light_trace_only = strtoupper(loc_light_trace_only);
 	if (!strcmp(loc_light_trace_only, "TRUE")) {
 		trace_para->light_trace_only = TRUE;
@@ -907,16 +1290,35 @@ bool parse_trace_line(char* line, unsigned int linenr) {
 
 	if (trace_para->start && trace_para->end && trace_para->filename) {
 		trace_para_set = TRUE;
+
+		dr_global_free(start, MAX_FILE_LINE_LEN);
+		dr_global_free(end, MAX_FILE_LINE_LEN);
+		dr_global_free(max_instr, MAX_FILE_LINE_LEN);
+		dr_global_free(loc_light_trace_only, MAX_FILE_LINE_LEN);
+
 		return TRUE;
 	}
 	
+	dr_global_free(start, MAX_FILE_LINE_LEN);
+	dr_global_free(end, MAX_FILE_LINE_LEN);
+	dr_global_free(max_instr, MAX_FILE_LINE_LEN);
+	dr_global_free(loc_light_trace_only, MAX_FILE_LINE_LEN);
+
 	return FALSE;
+}
+
+void __cdecl clean_exit_workaround(app_pc instr_addr, int exit_code) {
+	// Workaround for "Rank order violation all_threads_synch_lock(mutex): acquired after bb_building_lock issue" 
+	// Otherwise dr_exit_process crashes if used directly in "event_bb_instr_global" function.
+	dr_printf("[DDR] [INFO] Exiting process...");
+	dr_exit_process(exit_code);
 }
 
 dr_emit_flags_t event_bb_instr_global(void* drcontext, void* tag, instrlist_t* bb, instr_t* instr, bool for_trace, bool translating, void* user_data) {
 
 	app_pc instr_addr;
 	size_t instr_addr_fixed;
+	static bool startoffset_found;
 
 	instr_addr = instr_get_app_pc(instr);
 
@@ -926,16 +1328,32 @@ dr_emit_flags_t event_bb_instr_global(void* drcontext, void* tag, instrlist_t* b
 	else
 		instr_addr_fixed = (size_t)instr_addr - oep_diff;
 
+	// only trace sample applications instructions
 	if (instr_is_app(instr)) {
+		
+		// If start address was set, wait until 'start offset' is found with instrumentation. 
+		// Once we passed the start offset, instrumentation starts
+		if (startaddr_set) {
+			if (instr_addr_fixed != startaddr && startoffset_found == FALSE) {
+				return DR_EMIT_DEFAULT;
+			}
+			else {
+				startoffset_found = TRUE;
+			}
+		}
+
+		if (breakaddr_set) {
+			if (instr_addr_fixed == breakaddr) {
+				dr_printf("[DDR] [INFO] Break address.");
+				dr_insert_clean_call(drcontext, bb, instr, clean_exit_workaround, FALSE, 2, OPND_CREATE_INTPTR(instr_addr), OPND_CREATE_INTPTR(0));
+			}
+		}
 
 		// trace instrumentation needs to go first, it might be overwritten by dump, patch_flags etc., last instrumentation for an PC addr wins.
 		if (trace_para_set) {
-			//dr_printf("[DDR] [DEBUG] trace_para_set instrumenting instructions");
-			//dr_exit_process(1);
 			while (trace_para) {
 				if ((instr_addr_fixed >= trace_para->start) && (instr_addr_fixed <= trace_para->end)) {
-					//dr_printf("[DDR] [DEBUG] process instructions, instrumenting instructions");
-					// we don't need the the fp/mmx state itm, so save_fpstate=FALSE
+					// insert analysing function into basic block. Called for each basic block instruction.
 					dr_insert_clean_call(drcontext, bb, instr, process_instr_trace_instr_new, FALSE, 2, OPND_CREATE_INTPTR(instr_addr), OPND_CREATE_INTPTR(trace_para));
 				}
 				trace_para = trace_para->nexttr;
@@ -1018,30 +1436,6 @@ dr_emit_flags_t event_bb_instr_global(void* drcontext, void* tag, instrlist_t* b
 				instr_set_translation(newnop, instr_get_app_pc(instr));
 				instrlist_replace(bb, instr, newnop);
 				instr_destroy(drcontext, instr);
-
-
-				/*print_disasm(drcontext, instr_addr, instr_addr_fixed);
-
-				instr_t* jmp_loop = instr_create_0dst_1src(drcontext, OP_jmp_short, (opnd_create_pc(instr_get_app_pc(instr_get_next(instr)))));
-				
-				dr_printf("[DDR] [INFO] operant set\n");
-							
-				if (instr_get_prefix_flag(instr, PREFIX_LOCK)) {
-					instr_set_prefix_flag(jmp_loop, PREFIX_LOCK);
-				}
-				dr_printf("[DDR] [INFO] prefix flag\n");
-				instr_set_translation(jmp_loop, instr_get_app_pc(instr));
-				dr_printf("[DDR] [INFO] translation\n");
-				instr_set_src(jmp_loop, 0, opnd_create_pc(instr_get_app_pc(jmp_loop)));
-				instrlist_replace(bb, instr, jmp_loop);
-				dr_printf("[DDR] [INFO] replays\n");
-				instr_destroy(drcontext, instr);
-				dr_printf("[DDR] [INFO] instr destroyed\n");
-				print_disasm(drcontext, instr_addr, instr_addr_fixed);*/
-				//drmgr_unregister_bb_insertion_event(event_bb_instr_global);
-
-				//dr_insert_clean_call(drcontext, bb, instr, patch_sleep, FALSE, 0);
-
 			}
 		}
 	}

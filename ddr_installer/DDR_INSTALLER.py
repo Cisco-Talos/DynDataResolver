@@ -45,24 +45,37 @@ import shutil
 import string
 import random
 import re
+import platform
+from distutils.dir_util import copy_tree
 
-DYNRIO_DOWNLOAD_URL   = r"https://github.com/DynamoRIO/dynamorio/releases/download/release_8.0.0-1/DynamoRIO-Windows-8.0.0-1.zip"
-DDRSERVER_CONFIG_FILE_TEMPLATE = "templates\\ddr_server_template.json"
-DDRSERVER_CONFIG_FILE          = "ddr_server.cfg"
-DDRSERVER_VERSION              = "1.0 beta"
-APILOGGING                     = "DEBUG"
-DEBUG_API_JSON                 = "false"
-MY_FQDN                        = "malwarehost.local" # only used as name in the certificate, no DNS required.
-MAX_CFG_LINE_LENGTH            = 356
-DDR_DLL32                      = "ddr32.dll"
-DDR_DLL64                      = "ddr64.dll"
-DDR_CERT_FILENAME              = "ddr_server.crt"
-DDR_CERT_KEY_FILENAME          = "ddr_server.key"
-DDR_APIKEY_FILE                = "ddr_apikey.txt"
-DDR_VIRTENV_NAME               = "ddr_venv"
-MAX_INSTALL_DIR                = 160
-DDR_SERVER_IP  				   = "0.0.0.0"
-DDR_SERVER_PORT 			   = "5000" 
+# IDA DDR plugin globals
+IDA_PLUGIN_ZIP          = "ddr_plugin.zip"
+DDR_PLUGIN_SRCPATH      = "ddr_plugin"
+IDA_DEFAULT_INSTALL_DIR = os.getenv('ProgramW6432') + "\\IDA Pro 7.5"
+IDA_DEFAULT_PLUGIN_DIR  = os.getenv('APPDATA')      + "\\Hex-Rays\\IDA Pro\\plugins"
+IDA_DEFAULT_PYTHON_PATH = os.getenv('ProgramW6432') + "\\Python38"
+
+# DDR Server
+DYNRIO_DOWNLOAD_URL             = r"https://github.com/DynamoRIO/dynamorio/releases/download/release_8.0.0-1/DynamoRIO-Windows-8.0.0-1.zip"
+#DYNRIO_DOWNLOAD_URL_LATEST      = r"https://github.com/DynamoRIO/dynamorio/releases/download/cronbuild-8.0.18547/DynamoRIO-Windows-8.0.18547.zip"
+DYNRIO_DOWNLOAD_URL_LATEST      = r"https://github.com/DynamoRIO/dynamorio/releases/download/cronbuild-8.0.18585/DynamoRIO-Windows-8.0.18585.zip"
+DDRSERVER_CONFIG_FILE_TEMPLATE  = "templates\\ddr_server_template.json"
+DDRSERVER_CONFIG_FILE           = "ddr_server.cfg"
+DDRSERVER_VERSION               = "1.02 beta"
+APILOGGING                      = "DEBUG"
+DEBUG_API_JSON                  = "false"
+MY_FQDN                         = "malwarehost.local" # only used as name in the certificate, no DNS required.
+MAX_CFG_LINE_LENGTH             = 356
+DDR_DLL32                       = "ddr32.dll"
+DDR_DLL64                       = "ddr64.dll"
+DDR_CERT_FILENAME               = "ddr_server.crt"
+DDR_CERT_KEY_FILENAME           = "ddr_server.key"
+DDR_APIKEY_FILE                 = "ddr_apikey.txt"
+DDR_APIKEY                      = "not set" 
+DDR_VIRTENV_NAME                = "ddr_venv"
+MAX_INSTALL_DIR                 = 160
+DDR_SERVER_IP                   = "0.0.0.0"
+DDR_SERVER_PORT                 = "5000" 
 
 def proceed(question):
     """
@@ -87,14 +100,41 @@ def is_venv():
     return (hasattr(sys, 'real_prefix') or
             (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
 
+def get_ida_dir():
+    print("[DDR_PLUGIN_INSTALLER][INFO] Please enter the IDA installation directory.")
+    print("[DDR_PLUGIN_INSTALLER][INFO] Default is {}".format(IDA_DEFAULT_INSTALL_DIR))
+    ida_dir = input("[DDR_PLUGIN_INSTALLER][INFO] IDA installation directory: ") or IDA_DEFAULT_INSTALL_DIR
+    print()
+    return ida_dir
+
+def get_ida_plugin_dir():
+    print("[DDR_PLUGIN_INSTALLER][INFO] Please go to IDA and find out where the user plugin directory is.")
+    print("[DDR_PLUGIN_INSTALLER][INFO] You can do that by entering the follwing into the Python command prompt of IDA:")
+    print("[DDR_PLUGIN_INSTALLER][INFO] print(os.path.join(idaapi.get_user_idadir(), \"plugins\"))")
+    print("[DDR_PLUGIN_INSTALLER][INFO] Default plugin directory is {}".format(IDA_DEFAULT_PLUGIN_DIR))
+    ida_plugin_dir = input("[DDR_PLUGIN_INSTALLER][INFO] IDA plugin directory: ") or IDA_DEFAULT_PLUGIN_DIR
+    print()
+    return ida_plugin_dir
+
+def get_ida_python_version():
+    print("[DDR_PLUGIN_INSTALLER][INFO] Please go to IDA and find out which Python version IDA is using.")
+    print("[DDR_PLUGIN_INSTALLER][INFO] You can do that by entering the follwing into the Python command prompt of IDA:")
+    print("[DDR_PLUGIN_INSTALLER][INFO] print(sys.exec_prefix)")
+    print("[DDR_PLUGIN_INSTALLER][INFO] Default plugin directory is {}".format(IDA_DEFAULT_PYTHON_PATH))
+    ida_python_path = input("[DDR_PLUGIN_INSTALLER][INFO] Please enter the IDA Python directory path: ") or IDA_DEFAULT_PYTHON_PATH
+    print()
+    return ida_python_path
+
 def create_apikey(apikey_file):
     """ 
     Generate API key
     """    
+    global DDR_APIKEY
+
     try:
-        key = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(24))
+        DDR_APIKEY = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(24))
         with open(apikey_file, "w") as text_file:
-            text_file.write("{}".format(key))
+            text_file.write("{}".format(DDR_APIKEY))
         print("[DDR_INSTALLER][INFO] --------------------------------------------------------------------------------")
         print("[DDR_INSTALLER][INFO] Generated new API Key and wrote it to {}".format(apikey_file))
         print("[DDR_INSTALLER][INFO] --------------------------------------------------------------------------------\n")
@@ -281,6 +321,18 @@ def download_zip_and_unpack(unpack_dir, url):
 
     return True
 
+def cpu_is_AMD(): 
+    """
+    Check if CPU is from AMD
+    """
+    cpu = platform.processor()
+    
+    if "amd" in cpu.lower():
+        return True
+    
+    return False
+
+
 def install_deps(venv, ddr_default_dir):
     """
     Main installer routine to install all neccessary 
@@ -324,9 +376,19 @@ def install_deps(venv, ddr_default_dir):
     load_mod("clint")
 
     # Install DynamoRio    
-    if proceed("Should we proceed with downloading and installing DynamoRio to {} [Y/n] ? ".format(ddr_default_dir)):
-        download_zip_and_unpack(ddr_default_dir, DYNRIO_DOWNLOAD_URL)
-    
+    if proceed("Should we proceed with downloading and installing DynamoRio to {} [Y/n] ?".format(ddr_default_dir)):
+        if cpu_is_AMD():
+            print("[DDR_INSTALLER][WARNING] It seems to be you have an AMD CPU. There is a AMD CPU which makes DynamoRio fail in WOW64 operations.")
+            print("[DDR_INSTALLER][WARNING] Details can be found here: https://github.com/DynamoRIO/dynamorio/issues/4091#")
+            print("[DDR_INSTALLER][WARNING] with an AMD processor it is highly recommend to use the latest DynamoRio GIT version.")
+
+        if proceed("Should we install the weekly package (recommended - includes AMD CPU bug fix) or the latest stable release. [W/S] ? ".format(ddr_default_dir)):
+            print("[DDR_INSTALLER][WARNING] Installing weekly DynamoRio package:\n{}".format(DYNRIO_DOWNLOAD_URL_LATEST))
+            download_zip_and_unpack(ddr_default_dir, DYNRIO_DOWNLOAD_URL_LATEST)
+        else:
+            print("[DDR_INSTALLER][WARNING] Installing latest stable DynamoRio package:\n{}".format(DYNRIO_DOWNLOAD_URL_LATEST))
+            download_zip_and_unpack(ddr_default_dir, DYNRIO_DOWNLOAD_URL)
+
     try:
         dynrio_path  = glob.glob(ddr_default_dir + '\\DynamoRIO-Windows*')[0]      
         dynrio_run32 = dynrio_path + "\\bin32\\drrun.exe"
@@ -347,7 +409,7 @@ def install_deps(venv, ddr_default_dir):
     else:
         print("[DDR_INSTALLER][INFO] DynamoRio run binaries found.\n")
     
-	# Network setup
+    # Network setup
     print("[DDR_INSTALLER][INFO] Network setup:")
     
     DDR_SERVER_PORT = input("[DDR_INSTALLER][INFO] Please enter server PORT to listen on (Default is 5000) :") or "5000"
@@ -428,6 +490,88 @@ def install_deps(venv, ddr_default_dir):
 
     return True
 
+def built_plugin_zip(ddr_default_dir):
+
+    ida_plugin_tmp              = "install_data\\ddr_plugin" 
+    ida_plugin_cfg_template     = "templates\\ddr_config_template.json"
+    ida_plugin_install_template = "templates\\ida_plugin_installer_template.py"
+    ida_install_dir             = get_ida_dir()
+    ida_plugin_dir              = get_ida_plugin_dir()
+    ida_python_path             = get_ida_python_version()
+
+    print("[DDR_INSTALLER][INFO] Using the following directories:")
+    print("[DDR_INSTALLER][INFO] IDA install dir: {}".format(ida_install_dir))
+    print("[DDR_INSTALLER][INFO] IDA plugin dir : {}".format(ida_plugin_dir))
+    print("[DDR_INSTALLER][INFO] IDA Python dir : {}\n".format(ida_python_path))
+
+    if not proceed("[DDR_INSTALLER][INFO] Is this correct ? [Y/n]"):
+        exit(1)
+
+    # copy plugin, plugin config file and cert file
+    filename_list = [ "ddr_server.crt" ]
+    os.makedirs(ida_plugin_tmp + "\\ddr", exist_ok=True)
+    for fn in filename_list:
+        cf = shutil.copyfile(ddr_default_dir + "\\" + fn, ida_plugin_tmp + "\\ddr\\" + fn)
+        print("[DDR_INSTALLER][INFO] Copied file: {}".format(cf))
+
+    cf = shutil.copyfile("install_data\\ddr_plugin.py", ida_plugin_tmp + "\\ddr_plugin.py")
+    print("[DDR_INSTALLER][INFO] Copied file: {}".format(cf))
+
+    # Create DDR plugin config file
+    with open(ida_plugin_cfg_template, 'r') as f:
+            ddrplugin_cfg_file = f.read()
+
+    ida_plugin_dir_escaped = ida_plugin_dir.replace("\\", "\\\\")
+
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<WEBSERVER>"           , DDR_SERVER_IP)
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<WEBSERVER_PORT>"      , DDR_SERVER_PORT)
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<DDR_WEBAPI_KEY>"      , DDR_APIKEY)
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<CA_CERT>"             , ida_plugin_dir_escaped + "\\\\ddr\\\\" + DDR_CERT_FILENAME)
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<VERIFY_CERT>"         , "true")
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<DUMP_CFG_FILE>"       , "tmp_dump.cfg")
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<MAX_API_TIMEOUT>"     , "30.0")
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<DBG_LEVEL>"           , "2")
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<MAX_INSTR_TO_EXECUTE>", "20000")
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<MAX_LOG_ROUNDS>"      , "5")
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<MAX_CMT_ROUNDS>"      , "3")
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<MAX_INSTR_COUNT>"     , "50")
+    ddrplugin_cfg_file = ddrplugin_cfg_file.replace("<MAX_UPLOAD_ATTEMPTS>" , "3")
+
+    ddrplugin_cfg_filename = ida_plugin_tmp + "\\ddr\\ddr_config.json" 
+
+    with open(ddrplugin_cfg_filename, 'w') as f:
+        f.write(ddrplugin_cfg_file)
+
+    print("[DDR_INSTALLER][INFO] Created IDA DDR plugin config file: {}".format(ddrplugin_cfg_filename))
+
+    # Create plugin installer python script
+    with open(ida_plugin_install_template, 'r') as f:
+            ddrplugin_install_script = f.read()
+
+    ddrplugin_install_script = ddrplugin_install_script.replace("<IDA_INSTALL_DIR>" , ida_install_dir) 
+    ddrplugin_install_script = ddrplugin_install_script.replace("<IDA_PLUGIN_DIR>"  , ida_plugin_dir) 
+    ddrplugin_install_script = ddrplugin_install_script.replace("<IDA_PYTHON_PATH>" , ida_python_path)    
+
+    ddrplugin_install_script_filename = ida_plugin_tmp + "\\ida_plugin_installer.py" 
+
+    with open(ddrplugin_install_script_filename, 'w') as f:
+        f.write(ddrplugin_install_script)
+    print("[DDR_INSTALLER][INFO] Created IDA DDR plugin installer script: {}".format(ddrplugin_install_script_filename))
+
+    #Copy test files
+    test_samples_dir = ida_plugin_tmp + "\\ddr\\ddr_test_samples"
+    os.makedirs(test_samples_dir, exist_ok=True)
+    cf = copy_tree("ddr_test_samples", test_samples_dir)
+    
+    print("Copied test samples to:")
+    for copied_file in cf:
+        print(copied_file)
+
+    # Create ZIP archive 
+    res = shutil.make_archive(ida_plugin_tmp, 'zip', ida_plugin_tmp)
+
+    print("\n[DDR_INSTALLER][INFO] Created IDA DDR plugin zip archive: {}\n".format(ddrplugin_cfg_filename))
+    
 def installer_done():
     """
     Finalize installation and start DDR server in virtual environment.
@@ -446,7 +590,7 @@ def installer_done():
     print("[DDR_INSTALLER][INFO] IDA DDR plugin.")
     print("[DDR_INSTALLER][INFO] --------------------------------------------------------------\n")
 
-    if not proceed("[DDR_INSTALLER][INFO] Should we proceed with starting the DDR server (ddr_server.py) ? [Y/n]"):
+    if not proceed("[DDR_INSTALLER][INFO] Should we proceed with starting the DDR server (ddr_server.py) for you ? [Y/n]"):
         print("[DDR_INSTALLER][INFO] Good bye !")
         exit(0)
 
@@ -462,6 +606,10 @@ def installer_done():
 
 # --- Main ---
 if __name__ == "__main__":
+
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    mydir = os.path.realpath(__file__)
+    print("\n[DDR_INSTALLER][INFO] Running from directory {}\n".format(mydir))
 
     TMP_FILE1 = "ddr_install_dir.tmp"
 
@@ -499,6 +647,12 @@ if __name__ == "__main__":
             print("[DDR_INSTALLER][ERROR] Max. install directory length is {:d}. Please use a shorter path.".format(MAX_INSTALL_DIR))
             print("[DDR_INSTALLER][ERROR] Your DDR installation path is {:d} characters long.".format(len(ddr_default_dir)))
             exit(1)
+
+        if os.path.exists(ddr_default_dir):
+            print("[DDR_INSTALLER][INFO] Directory '{}' exists.".format(ddr_default_dir))
+            print("[DDR_INSTALLER][INFO] If this is an update it is recommended to delete the old installation first.")
+            if proceed("[DDR_INSTALLER][INFO] Should we delete the Directory '{}' [Y/n] ?"):
+                shutil.rmtree(ddr_default_dir)
 
         print("[DDR_INSTALLER][INFO] Installing DDR server to directory: {}".format(ddr_default_dir))
 
@@ -543,6 +697,7 @@ if __name__ == "__main__":
             print("[DDR_INSTALLER][INFO] Temp. file: {} deleted. Starting main installation routine.".format(TMP_FILE1))
 
             # Main installation routine
+            # Install virtual enviroment and dependancies 
             if install_deps(venv, ddr_default_dir):
                 print("[DDR_INSTALLER][INFO] Successfully installed DDR server to {}".format(ddr_default_dir)) 
                 
@@ -551,10 +706,13 @@ if __name__ == "__main__":
                     installer_done()
                     exit(0)
 
-                print("[DDR_INSTALLER][INFO] Starting IDA plugin installation.")
+                #Prepare IDA plugin files and config and built zip file
+                built_plugin_zip(ddr_default_dir)
+
+                # start web server 
                 python_bin  = venv + "\\Scripts\\python.exe"
-                script_file = "install_data\\ida_plugin_installer.py"
-                args        = "{}\\ddr_server.cfg".format(ddr_default_dir)  
+                script_file = "install_data\\installer_web_server.py"
+                args        = "{}".format(DDR_SERVER_IP)  
                 try:
                     subprocess.run([python_bin, script_file, args])
                 except KeyboardInterrupt:

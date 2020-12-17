@@ -55,11 +55,24 @@ C 00401150 FF
 #D 004013A2 SP0 004013AF SP0 0040141D dump2.bin
 #
 # -- Run Trace --:
-# start  end    max.instr  breakaddr lighttrace filename (the last in the list will be used)
-L 4012BE 40130F 20000 na TRUE "C:\Users\Dex Dexter\Documents\test\test\buffertest_trace.json"
-L 401335 4013CA 20000 na TRUE "C:\Users\Dex Dexter\Documents\test\test\buffertest_trace.json"
-L 401411 40146E 20000 na TRUE "C:\Users\Dex Dexter\Documents\test\test\buffertest_trace.json"
+# start  end    max.instr  lighttrace filename (the last filename in the list will be used)
+# 401335 4013CA 20000      TRUE       "C:\Users\Dex Dexter\Documents\test\test\buffertest_trace.json"
+# e.g.
+L 4012BE 40130F 20000 TRUE "C:\Users\Dex Dexter\Documents\test\test\buffertest_trace.json"
+L 401335 4013CA 20000 TRUE "C:\Users\Dex Dexter\Documents\test\test\buffertest_trace.json"
+L 401411 40146E 20000 FALSE "C:\Users\Dex Dexter\Documents\test\test\buffertest_trace.json"
 
 # -- Patch binary with endless Loop at address --:
 # loop-addr
 B 40170C
+
+# --- use a start address ---
+# DDR will start the instrumentation/analysis at this address
+# it is useful to use this if the start/end alone doesn't do the trick
+# e.g. the sample later jump to an address wich is smaller than the start address
+# you handed over in the trace(L) line for example
+S 40119F
+
+# --- use a break address ---
+# DDR stops instrumentation and execution of the process at this address
+A 4011FD

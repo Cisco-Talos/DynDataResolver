@@ -1,6 +1,7 @@
 #pragma once
 
 extern int cmd_opts;
+extern unsigned int dbgLevel;
 extern int tls_idx;
 extern int tls_idx2;
 extern int tls_idx3;
@@ -9,7 +10,6 @@ extern size_t oep_diff;
 extern size_t ref_flags;
 extern size_t from_addr;
 extern size_t to_addr;
-extern size_t break_addr;
 extern size_t inst_count;
 extern size_t inst_num;
 extern bool light_trace_only;
@@ -37,10 +37,14 @@ extern bool trace_para_set;
 extern S_TRACE_PARA* trace_para;
 extern S_TRACE_PARA* trace_para_start;
 
-extern S_PROCS *procs;
+extern S_PROCS* pListThreads;
+extern S_PROCS* pListThreads_start;
+extern unsigned int thread_counter;
+
 extern file_t global_fPidThreads;
 extern char*  global_pidThreadsFilename;
 extern char*  global_pidThreadsFullFilename;
+extern char*  global_logpath;
 
 extern bool dumpbuf_AddrFound;
 extern bool dumbuf_SizeFound;
@@ -59,3 +63,14 @@ extern unsigned int dr_exec_ctr;
 
 extern bool loop_set;
 extern size_t loop_addr;
+extern bool startaddr_set;
+extern size_t startaddr;
+extern bool breakaddr_set;
+extern size_t breakaddr;
+
+extern TCHAR szName[];
+extern TCHAR szProcIDs[];
+extern TCHAR szProcNames[];
+extern TCHAR szLogPath[];
+extern process_id_t *processids;
+

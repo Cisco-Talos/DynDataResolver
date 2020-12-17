@@ -1,0 +1,13 @@
+#### Release Notes ####
+
+Version 1.02 
+- Added 'start offset' feature. You can now set a start offset for traces. DDR starts the analysis at that address.
+- Added 'break address' feature. You can now add an address where DDR should break/stop the anaylsis.
+- Added an option to pass command line parameters to the sample
+- Added a check to pop up a warning if the sample was relocated in IDA
+- updated DynamoRio version
+- updated uvicorn library to 0.12.3 
+- updated cryptography to 3.2.1
+- updated some test samples
+- fixed a few minor bugs
+

@@ -1,134 +1,74 @@
-Open BUGS:
-----------
+1) Injection for 32bit processes which are launching 64bit child processes
 
-1) Some times the DDR client DLL (e.g. ddr64.dll) is crashing:
+There is an issue with DynamoRIO in the moment. It doesn't support injection for 32bit processes which are launching
+64bit child processes. A Scenario which some of the test samples above are doing e.g. testsample2_32.exe launches notepad.exe
+which could be 64bit process depending on the OS you are running it on.
+You can still analyse those processes with DDR, the only caveat is that DDR (or better the underlying DynmaoRIO) is not recognizing 
+the 64bit processes in this scenario and thou will not trace any data for it. The initial 32bit process is still analysed.
 
-C:\tools\DDR\DynamoRIO-Windows-8.0.0-1\bin64\drrun.exe -c "C:\tools\DDR\ddr64.dll" -c "C:\tools\DDR\samples\testsample0_64.cfg" -- "C:\tools\DDR\samples\testsample0_64.exe"
+If you run in such a scenario and want to verify it, you could run DynamoRio in debug mode e.g. :
 
-testsample0_64.cfg:
-N 1400012CB 1400012DD
-N 14000110C 14000110C
-L 140001220 14000125F 20000 na FALSE "C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645.json"
+C:\tools\DDR\DynamoRIO-Windows-8.0.0-1\bin32\drrun.exe -debug -checklevel 0 -loglevel 2 -- testsample32.exe
 
-Crash:
-b'<Application C:\\tools\\DDR\\samples\\testsample0_64.exe (1104).  DynamoRIO DDR tracer internal crash at PC 0x000000007107aaf0.  Please report this at hunterbr@cisco.com.  Program aborted.\n0xc0000005 0x00000000 0x000
-00007107aaf0 0x000000007107aaf0 0x0000000000000000 0x0000000000000000\nBase: 0x0000000071000000\nRegisters: eax=0x0000000000000001 ebx=0x000000013f505d40 ecx=0x0000000000000000 edx=0x0000000000000000\n\tesi=0x0000000000
-00000 edi=0x000000013f4ddf80 esp=0x000000013f4ddec0 ebp=0x000000013f4de030\n\tr8 =0x000000013f4ddfe0 r9 =0x00000000710edb40 r10=0x000000013f4ddfe2 r11=0x0000000071112800\n\tr12=0x000000013f431200 r13=0x0000000000000000
-14=0x0000000000000000 r15=0x0000000000000000\n\teflags=0x0000000000010246\nversion 8.0.0, build 1\n-no_dynamic_options -disasm_mask 1 -client_lib \'C:\\tools\\DDR\\ddr64.dll;0;"-c" "C:\\tools\\DDR\\samples\\testsample0_
-4.cfg"\' -code_api -probe_api -stack_size 56K -max_elide_jmp 0 -max_elide_call 0 -no_inline_ignored_syscalls -native_exec_default_list \'\' -no_native_exec_managed_code -no_indcall2direct \n0x000000013f4de030 0x00000000
-108319b\n0x00000000bf446a48 0x3030303030303078>\n'
+this will write a detailed logging file to C:\tools\DDR\DynamoRIO-Windows-8.0.0-1\logs\<name of process>\log.<some number>.html
 
-Bad/Good run:
-c:\tools\DDR>C:\tools\DDR\DynamoRIO-Windows-8.0.0-1\bin64\drrun.exe -c "C:\tools\DDR\ddr64.dll" -c "C:\tools\DDR\samples\testsample0_64.cfg" -- "C:\tools\DDR\samples\testsample0_64.exe"
+You can find an entry like this one in it:
 
-[DDR] [INFO] DDR Client DLL x64 Version 1.00 beta initializing...
-[DDR] [INFO] DDR Client DLL running from: C:\tools\DDR
-[DDR] [INFO] Reading config from file: C:\tools\DDR\samples\testsample0_64.cfg
-[DDR] [INFO] Trying to use trace logfile: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645.json
-[DDR] [INFO] Logfile exists
-[DDR] [INFO] Using new trace logfile: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_1380.json
-[DDR] [INFO] Done creating logfiles.
-[DDR] [INFO] Configuration file closed
-[DDR] [INFO] NOP'ing from 0x00000001400012cb to 0x00000001400012dd
-[DDR] [INFO] NOP'ing from 0x000000014000110c to 0x000000014000110c
-[DDR] [INFO] Doing a full trace from 0x0000000140001220 to 0x000000014000125f logging to C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645.json
-[DDR] [INFO] Initalization done.
-[DDR] [INFO] New thread initalization started. Appname = testsample0_64.exe Process ID = 1380 Threat ID = 1920
-[DDR] [INFO] Writing process info to: C:\tools\DDR\samples\ddr_processtrace.txt
-[DDR] [INFO] New process, first thread started.
-[DDR] [WARNING] Initial process launched a new process !
-[DDR] [INFO] Initial process pid was: 1104
-[DDR] [INFO] writing thread info to: C:\tools\DDR\samples\ddr_threads_testsample0_64.exe_1380.txt
-[DDR] [INFO] First thread. Setting main thread id to 1920
-[DDR] [INFO] Samplename: C:\tools\DDR\samples\testsample0_64.exe.
-[DDR] [INFO] PEB            : 0x000007fffffdf000
-[DDR] [INFO] PE Imagebase   : 0x000000013f830000
-[DDR] [INFO] PE EP          : 0x000000013f831764
-[DDR] [INFO] File EP        : 0x0000000140001764
-[DDR] [INFO] EP diff        : 0x00000000007d0000
-main: 1. Memory allocated
-Main: Buffer 1(@0x0000000000160000 Size:113): PE12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
-main: a is NOT greater 5.
-main: a = 2 is NOT greater 5.
-[DDR] [INFO] NOP'ing instruction at 0x00000001400012cb:
-[DDR] [INFO] Disasm(PC 0x400012cb): mov    ecx, dword ptr [rsp+0x20]
-[DDR] [INFO] NOP'ing instruction at 0x00000001400012cf:
-[DDR] [INFO] Disasm(PC 0x400012cf): call   0x000000013f831100
+--- snip ---
+syscall: NtCreateUserProcess presys \??\C:\windows\write.exe
+Exit from system call
+post syscall: sysnum=0x000000aa, params @0x0016f22c, result=0x00000000
+syscall: NtCreateUserProcess => 0x0
+syscall: NtCreateUserProcess created process 0x848 with main thread 0xd28
+WARNING: make_writable 0x73dc6000: param size 0x3f000 vs. mbi size 0x2c000 base 0x73dc6000
+WARNING: make_writable 0x73df2000: param size 0x13000 vs. mbi size 0x7000 base 0x73df2000
+WARNING: make_unwritable 0x73dc6000: param size 0x3f000 vs. mbi size 0x2c000 base 0x73dc6000
+WARNING: make_unwritable 0x73df2000: param size 0x13000 vs. mbi size 0x7000 base 0x73df2000
+SYSLOG_WARNING: Injecting from 32-bit into 64-bit process is not yet supported.
+syscall: NtCreateUserProcess: WARNING: failed to get cxt of thread (0xc000000d) so can't follow children on WOW64.
+--- snip ---
 
-c:\tools\DDR>C:\tools\DDR\DynamoRIO-Windows-8.0.0-1\bin64\drrun.exe -c "C:\tools\DDR\ddr64.dll" -c "C:\tools\DDR\samples\testsample0_64.cfg" -- "C:\tools\DDR\samples\testsample0_64.exe"
+Luckily for malware analysis, this scenario is not happening very often.
 
-[DDR] [INFO] DDR Client DLL x64 Version 1.00 beta initializing...
-[DDR] [INFO] DDR Client DLL running from: C:\tools\DDR
-[DDR] [INFO] Reading config from file: C:\tools\DDR\samples\testsample0_64.cfg
-[DDR] [INFO] Trying to use trace logfile: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645.json
-[DDR] [INFO] Logfile exists
-[DDR] [INFO] Using new trace logfile: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340.json
-[DDR] [INFO] Done creating logfiles.
-[DDR] [INFO] Configuration file closed
-[DDR] [INFO] NOP'ing from 0x00000001400012cb to 0x00000001400012dd
-[DDR] [INFO] NOP'ing from 0x000000014000110c to 0x000000014000110c
-[DDR] [INFO] Doing a full trace from 0x0000000140001220 to 0x000000014000125f logging to C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645.json
-[DDR] [INFO] Initalization done.
-[DDR] [INFO] New thread initalization started. Appname = testsample0_64.exe Process ID = 2340 Threat ID = 2928
-[DDR] [INFO] Writing process info to: C:\tools\DDR\samples\ddr_processtrace.txt
-[DDR] [INFO] New process, first thread started.
-[DDR] [WARNING] Initial process launched a new process !
-[DDR] [INFO] Initial process pid was: 1104
-[DDR] [INFO] writing thread info to: C:\tools\DDR\samples\ddr_threads_testsample0_64.exe_2340.txt
-[DDR] [INFO] First thread. Setting main thread id to 2928
-[DDR] [INFO] Samplename: C:\tools\DDR\samples\testsample0_64.exe.
-[DDR] [INFO] PEB            : 0x000007fffffdf000
-[DDR] [INFO] PE Imagebase   : 0x000000013f4a0000
-[DDR] [INFO] PE EP          : 0x000000013f4a1764
-[DDR] [INFO] File EP        : 0x0000000140001764
-[DDR] [INFO] EP diff        : 0x0000000000b60000
-main: 1. Memory allocated
-Main: Buffer 1(@0x0000000000060000 Size:113): PE12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
-main: a is NOT greater 5.
-main: a = 4 is NOT greater 5.
-[DDR] [INFO] NOP'ing instruction at 0x00000001400012cb:
-[DDR] [INFO] Disasm(PC 0x400012cb): mov    ecx, dword ptr [rsp+0x20]
-[DDR] [INFO] NOP'ing instruction at 0x00000001400012cf:
-[DDR] [INFO] Disasm(PC 0x400012cf): call   0x000000013f4a1100
-[DDR] [INFO] NOP'ing instruction at 0x00000001400012d4:
-[DDR] [INFO] Disasm(PC 0x400012d4): mov    dword ptr [rsp+0x20], eax
-[DDR] [INFO] NOP'ing instruction at 0x00000001400012d8:
-[DDR] [INFO] Disasm(PC 0x400012d8): imul   eax, dword ptr [rsp+0x20], 0x03
-[DDR] [INFO] NOP'ing instruction at 0x00000001400012dd:
-[DDR] [INFO] Disasm(PC 0x400012dd): mov    dword ptr [rsp+0x20], eax
-myfunc2: a = 6
-main: 1. a = 6 in main
-[DDR] [INFO] NOP'ing instruction at 0x000000014000110c:
-[DDR] [INFO] Disasm(PC 0x4000110c): add    eax, 0x02
-myfunc1: a = 6
-myfunc2: a = 8
-myfunc2: a = 14
-main: 2. a = 15 in main
-main: 2. Memory allocated
-main: Buffer 2(@0x0000000000170000 Size:116): TEST212345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
-main: 1. Release succeeded.
-main: 2. Release succeeded.
+You can find more infos at https://blog.talosintelligence.com/ search for DDR or Dynamic
+Data Resolver to find the latest blog about DDR.
 
-Main: Good bye...
+===========================================================================================================================================================
 
-[DDR] [INFO] Thread with id 2928 was terminated
-[DDR] [INFO] Main thread (id = 2928) was terminated.
-[DDR] [INFO] Fixing trace file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340.json
-[DDR] [INFO] Fixing file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340.json
-[DDR] [INFO] JSON file is ok, no comma at the end found.
-[DDR] [INFO] Opening file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340.json for writing
-[DDR] [INFO] Writing fixed buffer to file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340.json
-[DDR] [INFO] Done. Final logfile C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340.json written. Length: 32294 bytes.
-[DDR] [INFO] Trace file fixed.
-[DDR] [INFO] Fixing API trace file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340_apicalls.json
-[DDR] [INFO] Fixing file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340_apicalls.json
-[DDR] [INFO] JSON file is ok, no comma at the end found.
-[DDR] [INFO] Opening file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340_apicalls.json for writing
-[DDR] [INFO] Writing fixed buffer to file: C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340_apicalls.json
-[DDR] [INFO] Done. Final logfile C:\tools\DDR\samples\trace_tmp_4A2C16ADD57B983F79AE9BE7598AF645_testsample0_64.exe_2340_apicalls.json written. Length: 724393 bytes.
-[DDR] [INFO] API trace file fixed.
-[DDR] [INFO] Time : 09:38:12:21
+2) Under certain rare contitions the client DLL is crashing if you have NOP'ed out instructions. This bug is under investigation. A
+dirty workaround is to clear the configuration in IDA (DDR/Config/Clear configured DDR request) and re-run the sample again. 
 
-c:\tools\DDR>
-----
+===========================================================================================================================================================
 
+3) AMD CPU bug
+There is a DDR independent AMD CPU bug which crashes the DynamoRio framework if a 32bit sample is executed on a 64bit machine and the WoW64 architecture is switching between the 32 and 64 bit world. The issue is identified and the root cause found. The DynamoRio team has released a special build here <https://github.com/DynamoRIO/dynamorio/releases/tag/cronbuild-8.0.18547> which fixes the issue. You can download it and replace the original DynamoRio directory with this one. Unzip DynamoRIO-Windows-8.0.18547.zip and rename or backup the old directory (C:\tools\DDR\DynamoRIO-Windows-8.0.0-1), give the downloaded one the same name like the old one and move it to the same place.
+
+You can read more details here <https://github.com/DynamoRIO/dynamorio/issues/4091#>. The bug is confirmed on Ryzen CPUs, but may also occur on other AMD CPUs. We haven’t seen any issues on Intel CPUs. 
+
+In some cases, a possible workaround, until we have an updated version of DynamoRio, is to set MaxLoaderThreads to 1 in HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\<name of your sample.exe>
+
+===========================================================================================================================================================
+
+4) Access violations from 'dynamorio!safe_read_asm_xxx' functions are expected and can be ignored in WinDbg.They are caused by the way DynamoRio has implemented these functions (Try-Except).They are handled by DynamoRio internally if you haven’t attached a debugger. In In WinDbg, just proceed (F5) if something like below happens:
+
+WinDbg Console:
+(1df0.1a28) : Access violation - code c0000005(first chance)
+         First chance exceptions are reported before any exception handling.
+         This exception may be expected and handled.
+         dynamorio!safe_read_asm_pre
+
+The functions are heavily used in DDR, so you might see a lot of these exceptions. You can filter them by disable Access Violations in WInDbg. Most serious exceptions will still break into the debugger.
+
+===========================================================================================================================================================
+
+5) IDA Debugger and image relocation in IDA is not supported in DDR in the moment.
+
+If you use the IDA debugger for a sample which is using reloacation, IDA is rebasing the segments (or you rebase the segments manually), than DDR will use the
+rebased EA address, which will not work as far as DDR server/ DDR client need the org. PE RVA. 
+
+
+Missing features:
+=================
+
+- autom. add break address to full trace basic block (last address in basic block)
+- add break and start address feature to dump buffer and other features (works only for trace feature itm)

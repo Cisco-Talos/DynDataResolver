@@ -6,6 +6,7 @@
 #include "drx.h"
 #include "drwrap.h"
 #include "dr_tools.h"
+#include "dr_ir_opnd.h"
 
 #include <windows.h>
 #include <strsafe.h>
@@ -14,8 +15,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <psapi.h>
 
 // --- Defines ---
+#define DDR_VERSION "1.02 beta"
+
 #define CmdOpt_NormalTrace 1
 #define CmdOpt_DumpBuffer  2
 #define CmdOpt_Patch_EFLAG 4
@@ -34,6 +38,9 @@
 #define MAX_OP_PARA_LEN 3
 #define MAX_FILE_LINE_LEN 356
 #define MAX_CFG_LINE 350
+#define MAX_PROCESSES 255
+#define MAX_PROCESSNAME 255
+#define MAX_SEC_TO_WAIT_FOR_PROCS 20
 
 #define CF 5862190	
 #define PF 5862619	
@@ -47,6 +54,14 @@
 #define MAX_INSTR_COUNT 100000		// max. number of instructions to trace
 #define MAX_NUM_DSTS_OP 9			// BUG workaround - TBD Fixed, will remove this after some final checks (popa = 8 DST_OP) 
 #define MAX_NUM_SRCS_OP 9			// BUG workaround - TBD Fixed, will remove this after some final checks (pusha = 8 DST_OP)
+
+#ifdef _DEBUG
+#define debug_print(fmt, ...) \
+        do { dr_printf("[DDR] [DEBUG] %s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); } while (0)
+#else
+#define debug_print(...)
+#endif 
+
 
 // --- Typedefs ---
 typedef struct p_eflag_para {
@@ -90,19 +105,18 @@ typedef struct s_trace_para {
 	size_t start;
 	size_t end;
 	size_t max_instr;
-	size_t breakaddress;
 	bool   light_trace_only;
 	char*  filename;
 	file_t fpTracefile;
 	struct s_trace_para* nexttr;
 } S_TRACE_PARA;
 
-typedef struct s_procs {
-	struct s_procs* prevproc;
+typedef struct s_pListThreads {
+	struct s_pListThreads* prevproc;
 	process_id_t    start_process_id;
 	process_id_t    process_id;
 	thread_id_t     threat_id;
-	struct s_procs* nextproc;
+	struct s_pListThreads* nextproc;
 } S_PROCS;
 
 
@@ -113,6 +127,8 @@ DR_EXPORT void dr_client_main(client_id_t id, int argc, const char* argv[]);
 int parse_cmd_opt();
 void event_exit(void);
 bool parse_loop_line(char* line, unsigned int linenr);
+bool parse_startaddr_line(char* line, unsigned int linenr);
+bool parse_breakaddr_line(char* line, unsigned int linenr);
 bool parse_cfgfile(char* filename);
 bool parse_patch_flag_line(char* line);
 bool parse_patch_nop_line(char* line);
@@ -132,6 +148,15 @@ unsigned long djb2_hash(unsigned char* str);
 unsigned char* strtoupper(unsigned char* t);
 void check_strlen(char* str, size_t maxlen, char* failmsg, unsigned int linenr);
 bool fix_comma_in_jsonfile(char* fname);
+app_pc my_opnd_compute_address(opnd_t opnd, dr_mcontext_t* mc);
+bool my_opnd_is_reg(opnd_t opnd);
+int IncProcCounter();
+int DecProcCounter();
+int GetProcCounter();
+process_id_t* getSharedProcessIDs(process_id_t* pProcessids);
+char* getSharedProcessNames(char* pProcessnames);
+char* getLogFilePath(char* fullpath, char* dir);
+char* getSharedLogpath(char* pLogpath);
 
 // trace_instr
 void event_module_load_trace_instr(void* drcontext, const module_data_t* info, bool loaded);
@@ -141,7 +166,7 @@ void event_thread_exit_trace_instr(void* drcontext);
 void __cdecl process_instr_trace_instr_new(app_pc instr_addr, S_TRACE_PARA* tr);
 static void iterate_exports_trace_instr(const module_data_t* info);
 static bool lib_is_not_blacklisted_trace_instr(const module_data_t* info);
-static unsigned char* get_byte_string_trace_instr(unsigned char* bytesbuf, size_t bytesread);
+static unsigned char* get_byte_string_trace_instr(unsigned char* bytesbuf, size_t bytesread, size_t* resultstr_size);
 static void log_bytestream_trace_instr(file_t f, unsigned char* bytesbuf, size_t bytesread, app_pc memaddr, uint instr_mem_size);
 static bool write_mem_data_trace_instr(file_t f, size_t numbytes, app_pc memaddr, char* json_field_str);
 static bool write_mem_to_file_trace_instr(file_t f, ssize_t numbytes, app_pc memaddr);

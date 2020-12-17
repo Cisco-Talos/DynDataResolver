@@ -11,7 +11,7 @@ Start address - The instrumentation/analysis starts at this address
 Break address - The instrumentation and execution of the sample process stops here
 
 You can find a detailed description of the 1.0.2 features here at release time 
-https://blog.talosintelligence.com/2020/12/ddr102beta.html
+https://blog.talosintelligence.com/2020/12/talos-tools-of-trade.html
 
 ---
 

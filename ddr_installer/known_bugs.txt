@@ -1,4 +1,5 @@
 1) Injection for 32bit processes which are launching 64bit child processes
+
 There is an issue with DynamoRIO in the moment. It doesn't support injection for 32bit processes which are launching
 64bit child processes. A Scenario which some of the test samples above are doing e.g. testsample2_32.exe launches notepad.exe
 which could be 64bit process depending on the OS you are running it on.
@@ -59,3 +60,15 @@ WinDbg Console:
 The functions are heavily used in DDR, so you might see a lot of these exceptions. You can filter them by disable Access Violations in WInDbg. Most serious exceptions will still break into the debugger.
 
 ===========================================================================================================================================================
+
+5) IDA Debugger and image relocation in IDA is not supported in DDR in the moment.
+
+If you use the IDA debugger for a sample which is using reloacation, IDA is rebasing the segments (or you rebase the segments manually), than DDR will use the
+rebased EA address, which will not work as far as DDR server/ DDR client need the org. PE RVA. 
+
+
+Missing features:
+=================
+
+- autom. add break address to full trace basic block (last address in basic block)
+- add break and start address feature to dump buffer and other features (works only for trace feature itm)

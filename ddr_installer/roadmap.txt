@@ -1,0 +1,9 @@
+Feature requests and roadmap:
+(no special order, not committed, just brainstorming)
+
+- Snapshots for loaded trace files (pull-down menu to quickly jump between different scans)
+- highlighting of executed instructions in IDAs decompiler view
+- patch register at PC n
+- exec shellcode at PC n
+- pause and exec custom app/tool at PC n 
+- dump custom memory range at PC n

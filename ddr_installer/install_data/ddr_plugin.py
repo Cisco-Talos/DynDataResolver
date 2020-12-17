@@ -2,7 +2,7 @@
 #
 #   IDA Pro Plug-in: Dynamic Data Resolver (DDR) Front End
 #
-#   Version 1.0 
+#   Version 1.02beta 
 #
 #   Copyright (C) 2020 Cisco Talos
 #   Author: Holger Unterbrink (hunterbr@cisco.com)
@@ -54,6 +54,7 @@ import ida_kernwin
 import ida_nalt
 import ida_ua
 import idautils
+import ida_ida
 import idc
 import logging
 import tempfile
@@ -106,7 +107,7 @@ else:
 
 # Globals
 # -------
-DDR_PLUGIN_VERSION = "1.0 beta"
+DDR_PLUGIN_VERSION = "1.02 beta"
 # Global DDR plugin configuration file
 # DDR_CFG_FILE = idaapi.idadir("plugins\\ddr\\ddr_config.json") 
 DDR_CFG_FILE = "C:\\Users\\Dex Dexter\\AppData\\Roaming\\Hex-Rays\\IDA Pro\\plugins\\ddr\\ddr_config.json"
@@ -145,6 +146,15 @@ menu_items = OrderedDict([
 ("DDR_Action_Remove_BB2List"              , { "menu_str":"Remove basic block from basic block list"         , "hotkey":"Ctrl+Shift+D"  , "submenu":"Select/"       , "ah_id":"Select_Remove_BB2List"      , "x64only":False, "hide_in_context":False}),
 ("DDR_Action_Print_BB2List"               , { "menu_str":"Show basic block list"                            , "hotkey":None            , "submenu":"Select/"       , "ah_id":"Select_Print_BB2List"       , "x64only":False, "hide_in_context":False}),
 ("DDR_Action_Clear_BB2List"               , { "menu_str":"Clear basic block list"                           , "hotkey":None            , "submenu":"Select/"       , "ah_id":"Select_Clear_BB2List"       , "x64only":False, "hide_in_context":False}),
+("DDR_Action_SetStartOffset"              , { "menu_str":"Set start offset"                                 , "hotkey":None            , "submenu":"Select/"       , "ah_id":"Select_SetStartOffset"      , "x64only":False, "hide_in_context":False}),
+("DDR_Action_ClearStartOffset"            , { "menu_str":"Clear start offset"                               , "hotkey":None            , "submenu":"Select/"       , "ah_id":"Select_ClearStartOffset"    , "x64only":False, "hide_in_context":False}),
+("DDR_Action_ShowStartOffset"             , { "menu_str":"Show start offset"                                , "hotkey":None            , "submenu":"Select/"       , "ah_id":"Select_ShowStartOffset"     , "x64only":False, "hide_in_context":False}),
+("DDR_Action_SetBreakaddress"             , { "menu_str":"Set break address"                                , "hotkey":None            , "submenu":"Select/"       , "ah_id":"Select_SetBreakaddress"     , "x64only":False, "hide_in_context":False}),
+("DDR_Action_ClearBreakaddress"           , { "menu_str":"Clear break address"                              , "hotkey":None            , "submenu":"Select/"       , "ah_id":"Select_ClearBreakaddress"   , "x64only":False, "hide_in_context":False}),
+("DDR_Action_ShowBreakaddress"            , { "menu_str":"Show break address"                               , "hotkey":None            , "submenu":"Select/"       , "ah_id":"Select_ShowBreakaddress"    , "x64only":False, "hide_in_context":False}),
+("DDR_Action_SetCmdArgs"                  , { "menu_str":"Set command line args"                            , "hotkey":None            , "submenu":"Select/"       , "ah_id":"Select_SetCmdArgs"          , "x64only":False, "hide_in_context":False}),
+("DDR_Action_ClearCmdArgs"                , { "menu_str":"Clear command line args"                          , "hotkey":None            , "submenu":"Select/"       , "ah_id":"Select_ClearCmdArgs"        , "x64only":False, "hide_in_context":False}),
+("DDR_Action_ShowCmdArgs"                 , { "menu_str":"Show command line args"                           , "hotkey":None            , "submenu":"Select/"       , "ah_id":"Select_ShowCmdArgs"         , "x64only":False, "hide_in_context":False}),
 ("DDR_Action_Trace_On_Range"              , { "menu_str":"Run full trace for marked address range"          , "hotkey":None            , "submenu":"Trace/"        , "ah_id":"Run_Trace_On_Range"         , "x64only":False, "hide_in_context":False}),
 ("DDR_Action_Run_Trace_On_BB"             , { "menu_str":"Run full trace for marked basic block"            , "hotkey":None            , "submenu":"Trace/"        , "ah_id":"Run_Trace_On_BB"            , "x64only":False, "hide_in_context":False}),
 ("DDR_Action_Run_Trace_On_BBList"         , { "menu_str":"Run full trace for basic block list"              , "hotkey":None            , "submenu":"Trace/"        , "ah_id":"Run_Trace_On_BB_list"       , "x64only":False, "hide_in_context":False}),
@@ -165,8 +175,8 @@ menu_items = OrderedDict([
 ("DDR_Action_Set_Num_Hits_for_IdaLog"     , { "menu_str":"Set number of trace hits for IDA log window"      , "hotkey":None            , "submenu":"Config/"       , "ah_id":"Get_Set_Num_Hits_IdaLog"    , "x64only":False, "hide_in_context":False}),
 ("DDR_Action_Set_Num_Max_Instr"           , { "menu_str":"Set number of instructions to log at runtime"     , "hotkey":None            , "submenu":"Config/"       , "ah_id":"Get_Set_Max_Instr"          , "x64only":False, "hide_in_context":False}),
 ("DDR_Action_Set_Num_API_timeout"         , { "menu_str":"Set number of seconds for API timeout"            , "hotkey":None            , "submenu":"Config/"       , "ah_id":"Get_Set_API_timeout"        , "x64only":False, "hide_in_context":False}),
-("DDR_Action_Dump_buffer_edit_cfg"        , { "menu_str":"Edit DDR request (Experts only)"                   , "hotkey":None            , "submenu":"Config/"       , "ah_id":"Dump_buffer_edit_cfg"       , "x64only":False, "hide_in_context":False}),
-("DDR_Action_Dump_buffer_clear_cfg"       , { "menu_str":"Clear configured DDR request"                     , "hotkey":None            , "submenu":"Config/"       , "ah_id":"Dump_buffer_clear_cfg"      , "x64only":False, "hide_in_context":False}),
+("DDR_Action_Dump_buffer_edit_cfg"        , { "menu_str":"Edit DDR API request (Experts only)"              , "hotkey":None            , "submenu":"Config/"       , "ah_id":"Dump_buffer_edit_cfg"       , "x64only":False, "hide_in_context":False}),
+("DDR_Action_Dump_buffer_clear_cfg"       , { "menu_str":"Clear configured DDR API request"                 , "hotkey":None            , "submenu":"Config/"       , "ah_id":"Dump_buffer_clear_cfg"      , "x64only":False, "hide_in_context":False}),
 ("DDR_Action_Get_Mem_Ptr_xax"             , { "menu_str":"Get memory for ptr in xax"                        , "hotkey":None            , "submenu":"Get Register/" , "ah_id":"Get_Mem_Ptr_xax"            , "x64only":False, "hide_in_context":False}),
 ("DDR_Action_Get_Mem_Ptr_xbx"             , { "menu_str":"Get memory for ptr in xbx"                        , "hotkey":None            , "submenu":"Get Register/" , "ah_id":"Get_Mem_Ptr_xbx"            , "x64only":False, "hide_in_context":False}),
 ("DDR_Action_Get_Mem_Ptr_xcx"             , { "menu_str":"Get memory for ptr in xcx"                        , "hotkey":None            , "submenu":"Get Register/" , "ah_id":"Get_Mem_Ptr_xcx"            , "x64only":False, "hide_in_context":False}),
@@ -454,6 +464,7 @@ class ddr_api_v1_cfg(object):
                      "id"                    : None,
                      "arch_bits"             : None,
                      "sample_file"           : SAMPLE_FILENAME,
+                     "sample_args"           : None,
                      "sample_sha256"         : SAMPLE_SHA256,
                      "buf_size_addr"         : {},
                      "buf_size_op"           : {},
@@ -471,6 +482,7 @@ class ddr_api_v1_cfg(object):
                      "trace_end"             : {},
                      "trace_max_instr"       : {},
                      "trace_breakaddress"    : {},
+                     "trace_startoffset"     : {}, 
                      "filelist2del"          : [],
                      "dl_file"               : [],
                      "run_opt"               : None,
@@ -479,7 +491,7 @@ class ddr_api_v1_cfg(object):
 
         self.clear_cfg()
 
-    def set_cfg_para(self, para, value1=None, value2=None, value3=None, value4=None, value5=None):
+    def set_cfg_para(self, para, value1=None, value2=None, value3=None, value4=None, value5=None, value6=None):
         
         if para.upper().startswith("0X"):
             para = para[2:]
@@ -513,6 +525,12 @@ class ddr_api_v1_cfg(object):
         except:
             pass
 
+        try:
+            if value6.upper().startswith("0X"):
+                value6 = value6[2:]
+        except:
+            pass
+
         if para == "dumpbuffer":
             if value1:
                 self.cfg["buf_size_addr"].update({"{}".format(self.counter_bufdump) : "{}".format(value1.upper())})
@@ -527,14 +545,18 @@ class ddr_api_v1_cfg(object):
             self.set_buffer_counter()
 
         elif para == "trace":
-            self.cfg["trace_start"].update({"{}".format(self.counter_traces) : "{}".format(value1.upper())})
-            self.cfg["trace_end"].update({"{}".format(self.counter_traces) : "{}".format(value2.upper())})
+            if value1:
+                self.cfg["trace_start"].update({"{}".format(self.counter_traces) : "{}".format(value1.upper())})
+            if value2:
+                self.cfg["trace_end"].update({"{}".format(self.counter_traces) : "{}".format(value2.upper())})
             if value3:
                 self.cfg["trace_max_instr"].update({"{}".format(self.counter_traces) : "{}".format(value3.upper())})
             if value4:
                 self.cfg["trace_breakaddress"].update({"{}".format(self.counter_traces) : "{}".format(value4.upper())})
-            if value5:
-                self.cfg["trace_light"].update({"{}".format(self.counter_traces) : "{}".format(value5.upper())})
+            if value5:      
+                self.cfg["trace_startoffset"].update({"{}".format(self.counter_traces) : "{}".format(value5.upper())})
+            if value6:
+                self.cfg["trace_light"].update({"{}".format(self.counter_traces) : "{}".format(value6.upper())})
             else:
                 self.cfg["trace_light"].update({"{}".format(self.counter_traces) : "{}".format("FALSE")})
             self.set_traces_counter()
@@ -601,7 +623,6 @@ class ddr_api_v1_cfg(object):
             self.cfg["trace_start"]        = {}
             self.cfg["trace_end"]          = {}
             self.cfg["trace_max_instr"]    = {}
-            self.cfg["trace_breakaddress"] = {}
             self.cfg["trace_light"]        = {}
             self.counter_traces = 0
         elif para == "nops":
@@ -738,6 +759,7 @@ class ddr_api_v1_cfg(object):
            self.cfg["trace_end"]            and not \
            self.cfg["trace_max_instr"]      and not \
            self.cfg["trace_breakaddress"]   and not \
+           self.cfg["trace_startoffset"]    and not \
            self.cfg["trace_light"]          and not \
            self.cfg["nop_start_addr"]       and not \
            self.cfg["nop_end_addr"]         and not \
@@ -923,6 +945,7 @@ class ddr_api_v1_cfg(object):
                      "id"                 : None,
                      "arch_bits"          : None,
                      "sample_file"        : SAMPLE_FILENAME,
+                     "sample_args"        : None,
                      "sample_sha256"      : SAMPLE_SHA256,
                      "buf_size_addr"      : {},
                      "buf_size_op"        : {},
@@ -940,6 +963,7 @@ class ddr_api_v1_cfg(object):
                      "trace_end"          : {},
                      "trace_max_instr"    : {},
                      "trace_breakaddress" : {},
+                     "trace_startoffset"  : {},
                      "run_opt"            : None,
                      "other"              : {}
                     }  
@@ -991,6 +1015,23 @@ class DDR_ida_action_handler(idaapi.action_handler_t):
       
         ea = idc.get_screen_ea()
 
+        pe = pefile.PE(idaapi.get_input_file_path(), fast_load=True)
+        eop = pe.OPTIONAL_HEADER.AddressOfEntryPoint
+        eop = eop + pe.OPTIONAL_HEADER.ImageBase
+        
+
+        if eop != ida_ida.inf_get_start_ea():
+            DDR_print_mesg("Org. Entrypoint of PE on disk and IDA Entrypoint are not the same.",2)
+            DDR_print_mesg("OEP PEFILE: {}".format(hex(eop)),2)
+            DDR_print_mesg("OEP IDA   : {}".format(hex(ida_ida.inf_get_start_ea())),2)
+            DDR_print_mesg("DDR is using the absolute virtual addresses coming from IDA for its operations, e.g. 0x410010.",2)
+            DDR_print_mesg("In case of relocation this will become e.g. 0x420010, but the ddr_server needs the org. virtual address from the PE on disk e.g. 0x410010.",2)
+            DDR_print_mesg("This will not work in most cases as far as the DDR server will use the wrong address (0x420010) for its operations.",2)
+            DDR_print_mesg("This usually happens when you manually rebase the segment or you have used the IDA debugger with a file using relocation",2)
+            DDR_print_mesg("For security reasons we canceled the operation.",2)
+            idaapi.warning("Warning: Operation canceled. IDA PE entrypoint and PE file on disk entrypoint are not the same. See log window for more infos.")
+            return 1
+
         # Command handler
         if self.cmd == ("Select_Add_BB2List"):
             DDR_print_mesg("Adding basic block to basic blocks list",7)
@@ -1031,6 +1072,73 @@ class DDR_ida_action_handler(idaapi.action_handler_t):
                 DDR_print_mesg("Done. Failed to clear basic block list.")
                 DDR_print_mesg("-------------------------------------------------------------------------------")
             return 1
+
+        if self.cmd == ("Select_SetStartOffset"):
+            startoffstr = hex(ea)
+            startoffstr = startoffstr[2:]
+            # There will likely always be only one start offset for all trace basicblock list entries (multiple traces),
+            # but we keep the dictionary format for future use of the field
+            DDR_API_V1_CONFIG_SETTINGS.cfg["trace_startoffset"]["0"] = startoffstr.upper()
+            DDR_print_mesg("Start offset set to 0x{}".format(DDR_API_V1_CONFIG_SETTINGS.cfg["trace_startoffset"]["0"]))
+            return 1
+
+        if self.cmd == ("Select_ClearStartOffset"):
+            DDR_API_V1_CONFIG_SETTINGS.cfg["trace_startoffset"] = {}
+            DDR_print_mesg("Start offset cleared")
+            return 1
+
+        if self.cmd == ("Select_ShowStartOffset"):
+            try:
+                DDR_print_mesg("Start offset: 0x{}".format(DDR_API_V1_CONFIG_SETTINGS.cfg["trace_startoffset"]["0"]))
+            except:
+                DDR_print_mesg("Start offset: not set")
+            return 1
+
+        if self.cmd == ("Select_SetBreakaddress"):
+            startoffstr = hex(ea)
+            startoffstr = startoffstr[2:]
+            # There will likely always be only one breakaddress for all trace basicblock list entries (multiple traces),
+            # but we keep the dictionary format for future use of the field
+            DDR_API_V1_CONFIG_SETTINGS.cfg["trace_breakaddress"]["0"] = startoffstr.upper()
+            DDR_print_mesg("Break address set to 0x{}".format(DDR_API_V1_CONFIG_SETTINGS.cfg["trace_breakaddress"]["0"]))
+            return 1
+
+        if self.cmd == ("Select_ClearBreakaddress"):
+            DDR_API_V1_CONFIG_SETTINGS.cfg["trace_breakaddress"] = {}
+            DDR_print_mesg("Break address cleared")
+            return 1
+
+        if self.cmd == ("Select_ShowBreakaddress"):
+            try:
+                DDR_print_mesg("Break address: 0x{}".format(DDR_API_V1_CONFIG_SETTINGS.cfg["trace_breakaddress"]["0"]))
+            except:
+                DDR_print_mesg("Break address: not set")
+            return 1
+
+        if self.cmd == ("Select_SetCmdArgs"):
+            
+            if DDR_API_V1_CONFIG_SETTINGS.cfg["sample_args"]:
+                cmdarg_txt = DDR_API_V1_CONFIG_SETTINGS.cfg["sample_args"]
+            else:
+                cmdarg_txt = ""
+
+            sample_args = ida_kernwin.ask_text(5000, cmdarg_txt, "Set command line arguments for sample e.g. -a 1 -b \"test string\"")
+            DDR_API_V1_CONFIG_SETTINGS.cfg["sample_args"] = sample_args
+            DDR_print_mesg("Command line args for sample set to: {}".format(sample_args))
+            return 1
+
+        if self.cmd == ("Select_ClearCmdArgs"):
+            DDR_API_V1_CONFIG_SETTINGS.cfg["sample_args"] = None
+            DDR_print_mesg("Command line args cleared")
+            return 1
+
+        if self.cmd == ("Select_ShowCmdArgs"):
+            if DDR_API_V1_CONFIG_SETTINGS.cfg["sample_args"]:
+                DDR_print_mesg("Command line args: {}".format(DDR_API_V1_CONFIG_SETTINGS.cfg["sample_args"]))
+            else:
+                DDR_print_mesg("Command line args: not set")
+            return 1
+
 
         if self.cmd == ("Dump_buffer_size_op"):
             try:
@@ -1290,7 +1398,7 @@ class DDR_ida_action_handler(idaapi.action_handler_t):
                 DDR_API_V1_CONFIG_SETTINGS.clear_cfg_para("trace")
 
                 DDR_print_mesg("Running trace on segment: [0x{:x} - 0x{:x}]".format(b_start, b_end))
-                DDR_API_V1_CONFIG_SETTINGS.set_cfg_para("trace", hex(b_start), hex(b_end), str(DDR_CONFIG_SETTINGS.MAX_INSTR_TO_EXECUTE), value5="TRUE")
+                DDR_API_V1_CONFIG_SETTINGS.set_cfg_para("trace", hex(b_start), hex(b_end), str(DDR_CONFIG_SETTINGS.MAX_INSTR_TO_EXECUTE), value6="TRUE")
 
 
                 DDR_print_mesg("Sending following config to server:")

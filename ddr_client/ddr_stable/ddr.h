@@ -18,7 +18,7 @@
 #include <psapi.h>
 
 // --- Defines ---
-#define DDR_VERSION "1.01 beta"
+#define DDR_VERSION "1.02 beta"
 
 #define CmdOpt_NormalTrace 1
 #define CmdOpt_DumpBuffer  2
@@ -105,7 +105,6 @@ typedef struct s_trace_para {
 	size_t start;
 	size_t end;
 	size_t max_instr;
-	size_t breakaddress;
 	bool   light_trace_only;
 	char*  filename;
 	file_t fpTracefile;
@@ -128,6 +127,8 @@ DR_EXPORT void dr_client_main(client_id_t id, int argc, const char* argv[]);
 int parse_cmd_opt();
 void event_exit(void);
 bool parse_loop_line(char* line, unsigned int linenr);
+bool parse_startaddr_line(char* line, unsigned int linenr);
+bool parse_breakaddr_line(char* line, unsigned int linenr);
 bool parse_cfgfile(char* filename);
 bool parse_patch_flag_line(char* line);
 bool parse_patch_nop_line(char* line);

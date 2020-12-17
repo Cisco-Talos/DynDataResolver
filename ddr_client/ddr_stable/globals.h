@@ -10,7 +10,6 @@ extern size_t oep_diff;
 extern size_t ref_flags;
 extern size_t from_addr;
 extern size_t to_addr;
-extern size_t break_addr;
 extern size_t inst_count;
 extern size_t inst_num;
 extern bool light_trace_only;
@@ -64,6 +63,10 @@ extern unsigned int dr_exec_ctr;
 
 extern bool loop_set;
 extern size_t loop_addr;
+extern bool startaddr_set;
+extern size_t startaddr;
+extern bool breakaddr_set;
+extern size_t breakaddr;
 
 extern TCHAR szName[];
 extern TCHAR szProcIDs[];

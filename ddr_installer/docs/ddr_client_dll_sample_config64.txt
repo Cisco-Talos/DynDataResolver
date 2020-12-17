@@ -52,10 +52,21 @@ D 0000000140001280 SP0 000000014000128D SP0 000000014000132B dump_x64_1.bin
 D 0000000140001494 SP0 00000001400014A1 SP0 000000014000153F dump_x64_2.bin
 #
 # -- Run Trace --:
-# start  end    max.instr  breakaddr lighttrace filename (the last in the 
+# start  end    max.instr lighttrace filename (the last filename in the 
 # list will be used)
-L 140001000 140003000 20000 na FALSE trace_tmp_CBEFF9E003C9FA8D8C568CFB85A885AF.json
+L 140001000 140003000 20000 FALSE trace_tmp_CBEFF9E003C9FA8D8C568CFB85A885AF.json
 #
 # -- Patch binary with endless Loop at address --:
 # loop-addr
 B 0000000140001280
+
+# --- use a start address ---
+# DDR will start the instrumentation/analysis at this address
+# it is useful to use this if the start/end alone doesn't do the trick
+# e.g. the sample later jump to an address wich is smaller than the start address
+# you handed over in the trace(L) line for example
+S 140001241
+
+# --- use a break address ---
+# DDR stops instrumentation and execution of the process at this address
+A 140001275

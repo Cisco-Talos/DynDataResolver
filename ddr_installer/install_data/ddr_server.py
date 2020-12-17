@@ -2,7 +2,7 @@
 #
 #   IDA Pro Plug-in: Dynamic Data Resolver (DDR) Server 
 #
-#   Version 1.0 
+#   Version 1.02 beta 
 #
 #   Copyright (C) 2020 Cisco Talos
 #   Author: Holger Unterbrink (hunterbr@cisco.com)
@@ -162,7 +162,7 @@ with open(DDR_SERVER_CFG, 'r') as handle:
         exit(1)
 try:
     DDR_SERVER_VERSION       = ddrserver_cfg["DDR_SERVER_VERSION"]          # e.g. "1.0"
-    APILOGGING               = ddrserver_cfg["APILOGGING"]                # e.g. (NORMAL,MEDIUM,DEBUG)
+    APILOGGING               = ddrserver_cfg["APILOGGING"]                  # e.g. (NORMAL,MEDIUM,DEBUG)
     DEBUG_API_JSON           = ddrserver_cfg["DEBUG_API_JSON"]              # e.g. False
     CERT_FILE                = ddrserver_cfg["CERT_FILE"]                   # e.g "ddr_server.crt"
     KEY_FILE                 = ddrserver_cfg["KEY_FILE"]                    # e.g "ddr_server.key"
@@ -496,7 +496,8 @@ class ddr_api_v1_parameter(BaseModel):
     apikey              : str = None
     cmd_id              : int = Query(None, alias="id")                  
     arch_bits           : int = None   
-    sample_file         : str = None   
+    sample_file         : str = None
+    sample_args         : str = None   
     sample_sha256       : str = None   
     buf_size_addr       : dict = {}   
     buf_size_op         : dict = {}   
@@ -513,7 +514,8 @@ class ddr_api_v1_parameter(BaseModel):
     trace_start         : dict = {}   
     trace_end           : dict = {}   
     trace_max_instr     : dict = {}   
-    trace_breakaddress  : dict = {}   
+    trace_breakaddress  : dict = {} 
+    trace_startoffset   : dict = {}   
     filelist2del        : list = []   
     dl_file             : list = []   
     run_opt             : str  = None   
@@ -635,6 +637,7 @@ async def json_api_v1(ddr_api_req: ddr_api_v1_parameter):
     if ddr_api_req.sample_file:
         try:
             sample_file           = ddr_api_req.sample_file
+            sample_args           = ddr_api_req.sample_args
             sample_sha256         = ddr_api_req.sample_sha256
             sample_file_with_path = samplesdir + sample_file
             dynrio_cfg_file  = samplesdir + os.path.splitext(sample_file)[0] + ".cfg"  
@@ -652,6 +655,8 @@ async def json_api_v1(ddr_api_req: ddr_api_v1_parameter):
                 return JSONResponse(status_code=201, content={ "return_status" : "Error: Sample file not found." })
             else:
                 log.info("Sample file found: {}".format(sample_file_with_path))
+                if sample_args:
+                    log.info("Sample file arguments: {}".format(sample_args))
         except Exception as ex:
             ddr_exception_handler_to_logger("Failed to convert dynrio_sample name.",ex)
             return JSONResponse(status_code=201, content={ "return_status" : "Error: Failed to convert dynrio_sample name." })
@@ -662,7 +667,7 @@ async def json_api_v1(ddr_api_req: ddr_api_v1_parameter):
     # write dynrio cfg file and execute sample
     if cmd_id == 5:
         log.info("Received API Command: Dump buffer.")
-        result = write_dump_cfg(json_content, dynrio_cfg_file)
+        result = generate_cfg_file(json_content, dynrio_cfg_file)
         if not result:
             log.error("Failed to generating the DDR config file")
             return JSONResponse(status_code=201, content={ "return_status" : "Error: Failed to generating the DDR config file."})
@@ -672,7 +677,7 @@ async def json_api_v1(ddr_api_req: ddr_api_v1_parameter):
             log.error("Failed writing JSON data to DDR config file.")
             return JSONResponse(status_code=201, content={ "return_status" : "Failed writing JSON data to DDR config file. See server site for details."})
 
-        dyn_full_cmd = build_dynRio_full_run_cmd_dump(dynrio_sample=sample_file_with_path, arch_bits=arch_bits, cfgfile=dynrio_cfg_file, cmd_opts=None)
+        dyn_full_cmd = build_dynRio_full_run_cmd(dynrio_sample=sample_file_with_path, dynrio_sample_args=sample_args, arch_bits=arch_bits, cfgfile=dynrio_cfg_file, cmd_opts=None)
         
         if dyn_full_cmd:
             runstatus = runcmd(dyn_full_cmd)
@@ -750,7 +755,7 @@ async def json_api_v1(ddr_api_req: ddr_api_v1_parameter):
     # run trace
     if cmd_id == 7:
         log.info("Received API Command: Run trace.")
-        result = write_dump_cfg(json_content, dynrio_cfg_file)
+        result = generate_cfg_file(json_content, dynrio_cfg_file)
         if not result:
             log.error("Failed to generating the DDR config file")
             return JSONResponse(status_code=201, content={ "return_status" : "Error: Failed to generating the DDR config file" })
@@ -760,7 +765,7 @@ async def json_api_v1(ddr_api_req: ddr_api_v1_parameter):
         last_trace_filename_api = trace_filename_api = os.path.splitext(trace_filename)[0] + "_apicalls.json"
         last_zipfilename        = zipfilename        = os.path.splitext(trace_filename)[0] + ".zip"
 
-        dyn_full_cmd = build_dynRio_full_run_cmd_dump(dynrio_sample=sample_file_with_path, arch_bits=arch_bits, cfgfile=dynrio_cfg_file, cmd_opts=None)
+        dyn_full_cmd = build_dynRio_full_run_cmd(dynrio_sample=sample_file_with_path, dynrio_sample_args=sample_args, arch_bits=arch_bits, cfgfile=dynrio_cfg_file, cmd_opts=None)
 
         if dyn_full_cmd:
             runstatus = runcmd(dyn_full_cmd)
@@ -846,12 +851,12 @@ async def json_api_v1(ddr_api_req: ddr_api_v1_parameter):
     # Execute sample only
     if cmd_id == 10:
         log.info("Received API Command: Only execute sample.")
-        result = write_dump_cfg(json_content, dynrio_cfg_file)
+        result = generate_cfg_file(json_content, dynrio_cfg_file)
         if not result:
             log.error("Failed to generating the DDR config file")
             return JSONResponse(status_code=201, content={ "return_status" : "Error: Failed to generating the DDR config file"})
 
-        dyn_full_cmd = build_dynRio_full_run_cmd_dump(dynrio_sample=sample_file_with_path, arch_bits=arch_bits, cfgfile=dynrio_cfg_file, cmd_opts=None)
+        dyn_full_cmd = build_dynRio_full_run_cmd(dynrio_sample=sample_file_with_path, dynrio_sample_args=sample_args, arch_bits=arch_bits, cfgfile=dynrio_cfg_file, cmd_opts=None)
 
         if dyn_full_cmd:
             runstatus = runcmd(dyn_full_cmd)
@@ -1119,7 +1124,7 @@ def write_cfg_line(line, cfgfile):
         log.error("Line is too long. Max. {:d} characters are allowed".format(MAX_CFG_LINE_LENGTH)) 
         return False
 
-def write_dump_cfg(json_cfg, cfgfilename):
+def generate_cfg_file(json_cfg, cfgfilename):
     """
     write JSON data to config file
     """
@@ -1156,6 +1161,23 @@ def write_dump_cfg(json_cfg, cfgfilename):
                     line = "C {} {}\n".format(call_addr[num],call_ret[num])
                     if not write_cfg_line(line, cfgfile): 
                         return False
+            except:
+                pass
+
+            try:
+                trace_startoffset = json_cfg['trace_startoffset']
+                line = "S {}\n".format(trace_startoffset['0'])
+                if not write_cfg_line(line, cfgfile): 
+                    return False
+            except:
+                pass
+
+            try:
+                trace_breakaddress = json_cfg['trace_breakaddress']
+               
+                line = "A {}\n".format(trace_breakaddress['0'])
+                if not write_cfg_line(line, cfgfile): 
+                    return False
             except:
                 pass
 
@@ -1207,12 +1229,7 @@ def write_dump_cfg(json_cfg, cfgfilename):
                     except:
                         trace_max_instr_num = "na"
 
-                    try:
-                        trace_breakaddress_num = json_cfg['trace_breakaddress'][num]
-                    except:
-                        trace_breakaddress_num = "na"
-
-                    line = "L {} {} {} {} {} \"{}\"\n".format(trace_start[num],trace_end[num],trace_max_instr_num,trace_breakaddress_num,trace_light[num],trace_filename)
+                    line = "L {} {} {} {} \"{}\"\n".format(trace_start[num],trace_end[num],trace_max_instr_num,trace_light[num],trace_filename)
                     log.debug("Config line built: {}".format(line[:-1]))
                     if not write_cfg_line(line, cfgfile): 
                         return False
@@ -1361,51 +1378,7 @@ def runcmd(my_cmd):
 
     return cmd_ret
 
-def build_dynRio_full_run_cmd_trace(start_addr=None, end_addr=None, break_addr=None, instr_count=None, jsonfile_name=None, dynrio_sample=None, arch_bits=None, cmd_opts=None):
-    """ 
-    Build shell cmd line for DynamoRIO drrun.exe -c DDR.dll ...
-    """
-    if start_addr == None or end_addr == None or instr_count == None or jsonfile_name==None or arch_bits==None:
-        log.error("jsonfile_name, start_addr, end_addr, arch_bits or instr_count not set")
-        return False
-
-    if arch_bits == 32:
-        dynrio_client_x32        = CFG_DYNRIO_CLIENTDLL_X32
-        dynrio_cmd_x32           = [CFG_DYNRIO_DRRUN_X32]
-        dynrio_cmd_x32.append("-c")
-        dynrio_cmd_x32.append("\"" + dynrio_client_x32 + "\"")
-        dynrio_cmd_x32.append("-s")
-        dynrio_cmd_x32.append("0x{:x}".format(start_addr))
-        dynrio_cmd_x32.append("-e")
-        dynrio_cmd_x32.append("0x{:x}".format(end_addr))
-        dynrio_cmd_x32.append("-c {:d}".format(instr_count))
-        dynrio_cmd_x32.append("-f")
-        dynrio_cmd_x32.append("\"" + jsonfile_name + "\"")
-        if cmd_opts: 
-            dynrio_cmd_x32.append(cmd_opts)
-        dynrio_cmd_x32.append("--")
-        dynrio_cmd_x32.append("\"" + dynrio_sample + "\"")
-        return dynrio_cmd_x32
-
-    elif arch_bits == 64:
-        dynrio_client_x64        = CFG_DYNRIO_CLIENTDLL_X64
-        dynrio_cmd_x64           = [CFG_DYNRIO_DRRUN_X64]
-        dynrio_cmd_x64.append("-c")
-        dynrio_cmd_x64.append("\"" + dynrio_client_x64 + "\"")
-        dynrio_cmd_x64.append("-s")
-        dynrio_cmd_x64.append("0x{:x}".format(start_addr))
-        dynrio_cmd_x64.append("-e")
-        dynrio_cmd_x64.append("0x{:x}".format(end_addr))
-        dynrio_cmd_x64.append("-c {:d}".format(instr_count))
-        dynrio_cmd_x64.append("-f")
-        dynrio_cmd_x64.append("\"" + jsonfile_name + "\"")
-        if cmd_opts:
-            dynrio_cmd_x64.append(cmd_opts)
-        dynrio_cmd_x64.append("--")
-        dynrio_cmd_x64.append("\"" + dynrio_sample + "\"")
-        return dynrio_cmd_x64
-
-def build_dynRio_full_run_cmd_dump(dynrio_sample=None, arch_bits=None, cfgfile=None, cmd_opts=None):
+def build_dynRio_full_run_cmd(dynrio_sample=None, dynrio_sample_args=None, arch_bits=None, cfgfile=None, cmd_opts=None):
     """ 
     Build shell cmd line for DynamoRIO drrun.exe -c DDR.dll ...
     """
@@ -1423,7 +1396,10 @@ def build_dynRio_full_run_cmd_dump(dynrio_sample=None, arch_bits=None, cfgfile=N
         if cmd_opts: 
             dynrio_cmd_x32.append(cmd_opts)
         dynrio_cmd_x32.append("--")
-        dynrio_cmd_x32.append("\"{}\"".format(dynrio_sample))
+        if dynrio_sample_args:
+            dynrio_cmd_x32.append("\"{}\" {}".format(dynrio_sample, dynrio_sample_args))
+        else:
+            dynrio_cmd_x32.append("\"{}\"".format(dynrio_sample))
         return dynrio_cmd_x32
 
     elif arch_bits == 64:
@@ -1436,7 +1412,10 @@ def build_dynRio_full_run_cmd_dump(dynrio_sample=None, arch_bits=None, cfgfile=N
         if cmd_opts:
             dynrio_cmd_x64.append(cmd_opts)
         dynrio_cmd_x64.append("--")
-        dynrio_cmd_x64.append("\"" + dynrio_sample + "\"")
+        if dynrio_sample_args:
+            dynrio_cmd_x64.append("\"{}\" {}".format(dynrio_sample, dynrio_sample_args))
+        else:
+            dynrio_cmd_x64.append("\"{}\"".format(dynrio_sample))
         return dynrio_cmd_x64
 
 def check_config_files_exist(files, dirs):

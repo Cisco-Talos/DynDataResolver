@@ -12,7 +12,7 @@ chardet==3.0.4            # via requests
 cheroot==8.3.0            # via -r requirements.in
 click==7.1.2              # via flask, uvicorn
 clint==0.5.1              # via -r requirements.in
-cryptography==2.9.2       # via pyopenssl
+cryptography==3.2.1       # via pyopenssl
 fastapi==0.54.2           # via -r requirements.in
 flask==1.1.2              # via -r requirements.in
 h11==0.9.0                # via uvicorn
@@ -31,6 +31,6 @@ requests==2.23.0          # via -r requirements.in
 six==1.14.0               # via cheroot, cryptography, pyopenssl, python-multipart
 starlette==0.13.2         # via fastapi
 urllib3==1.25.9           # via requests
-uvicorn==0.11.5           # via -r requirements.in
+uvicorn==0.12.3           # via -r requirements.in
 websockets==8.1           # via uvicorn
 werkzeug==1.0.1           # via -r requirements.in, flask

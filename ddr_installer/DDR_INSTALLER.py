@@ -57,10 +57,11 @@ IDA_DEFAULT_PYTHON_PATH = os.getenv('ProgramW6432') + "\\Python38"
 
 # DDR Server
 DYNRIO_DOWNLOAD_URL             = r"https://github.com/DynamoRIO/dynamorio/releases/download/release_8.0.0-1/DynamoRIO-Windows-8.0.0-1.zip"
-DYNRIO_DOWNLOAD_URL_LATEST      = r"https://github.com/DynamoRIO/dynamorio/releases/download/cronbuild-8.0.18547/DynamoRIO-Windows-8.0.18547.zip"
+#DYNRIO_DOWNLOAD_URL_LATEST      = r"https://github.com/DynamoRIO/dynamorio/releases/download/cronbuild-8.0.18547/DynamoRIO-Windows-8.0.18547.zip"
+DYNRIO_DOWNLOAD_URL_LATEST      = r"https://github.com/DynamoRIO/dynamorio/releases/download/cronbuild-8.0.18585/DynamoRIO-Windows-8.0.18585.zip"
 DDRSERVER_CONFIG_FILE_TEMPLATE  = "templates\\ddr_server_template.json"
 DDRSERVER_CONFIG_FILE           = "ddr_server.cfg"
-DDRSERVER_VERSION               = "1.0 beta"
+DDRSERVER_VERSION               = "1.02 beta"
 APILOGGING                      = "DEBUG"
 DEBUG_API_JSON                  = "false"
 MY_FQDN                         = "malwarehost.local" # only used as name in the certificate, no DNS required.

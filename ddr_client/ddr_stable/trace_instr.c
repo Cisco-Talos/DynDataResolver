@@ -238,7 +238,6 @@ void event_thread_init_trace_instr(void* drcontext)
 	dr_fprintf(global_trace_fp, "\"entrypoint\"             : \""PFX"\",\n", PEEntryPoint);
 	dr_fprintf(global_trace_fp, "\"oep\"                    : \""PFX"\",\n", FileEntryPoint);
 	dr_fprintf(global_trace_fp, "\"oep_diff\"               : \""PFX"\",\n", oep_diff);
-	dr_fprintf(global_trace_fp, "\"break_addr\"             : \""PFX"\",\n", break_addr ? break_addr : 0);
 	dr_fprintf(global_trace_fp, "\"instruction\"            : \n[\n");
 
 	if (patch_call_set) {
@@ -375,11 +374,6 @@ void __cdecl process_instr_trace_instr_new(app_pc instr_addr, S_TRACE_PARA* tr)
 	else
 		instr_addr_fixed = (size_t)instr_addr - oep_diff;
 
-	if (instr_addr_fixed == tr->breakaddress) {
-		event_thread_exit_trace_instr(dr_get_current_drcontext());
-		dr_abort();  // does not call any exit routines, just kills the process
-	}
-
 	if (tr->max_instr <= 0) {
 		dr_printf("[DDR] [WARNING] Max. number of instructions reached. Logging stopped at 0x%x.\n", instr_addr);
 		dr_exit_process(0);  // calls exit routines
@@ -390,6 +384,8 @@ void __cdecl process_instr_trace_instr_new(app_pc instr_addr, S_TRACE_PARA* tr)
 		dr_printf("[DDR] [DEBUG] i:0x%x\n", instr_addr_fixed);
 	}
 	/*
+	// Testing a crash....
+	//
 	if (instr_addr_fixed == 0x401924) {
 		dr_printf("[DDR] [DEBUG] -------- Create access violation when process instruction 0x401924. -----------\n");
 		memcpy(NULL, 0xffffffff, 50); // create access violation

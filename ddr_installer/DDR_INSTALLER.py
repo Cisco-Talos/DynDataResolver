@@ -24,7 +24,7 @@
 #   ------------------------------------------------------------------------------
 #
 #   Hint: This script does not have any dependencies. All non default dependencies 
-#         will be installed into a virtual envirmoent at run time.
+#         will be installed into a virtual environment at run time.
 #
 #   ------------------------------------------------------------------------------
 

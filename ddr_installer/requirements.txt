@@ -4,33 +4,71 @@
 #
 #    pip-compile requirements.in
 #
-aiofiles==0.5.0           # via -r requirements.in
-args==0.1.0               # via clint
-certifi==2020.4.5.1       # via requests
-cffi==1.14.0              # via cryptography
-chardet==3.0.4            # via requests
-cheroot==8.3.0            # via -r requirements.in
-click==7.1.2              # via flask, uvicorn
-clint==0.5.1              # via -r requirements.in
-cryptography==3.2.1       # via pyopenssl
-fastapi==0.54.2           # via -r requirements.in
-flask==1.1.2              # via -r requirements.in
-h11==0.9.0                # via uvicorn
-idna==2.9                 # via requests
-itsdangerous==1.1.0       # via flask
-jaraco.functools==3.0.1   # via cheroot
-jinja2==2.11.2            # via flask
-markupsafe==1.1.1         # via jinja2
-more-itertools==8.3.0     # via cheroot, jaraco.functools
-psutil==5.7.0             # via -r requirements.in
-pycparser==2.20           # via cffi
-pydantic==1.5.1           # via fastapi
-pyopenssl==19.1.0         # via -r requirements.in
-python-multipart==0.0.5   # via -r requirements.in
-requests==2.23.0          # via -r requirements.in
-six==1.14.0               # via cheroot, cryptography, pyopenssl, python-multipart
-starlette==0.13.2         # via fastapi
-urllib3==1.25.9           # via requests
-uvicorn==0.12.3           # via -r requirements.in
-websockets==8.1           # via uvicorn
-werkzeug==1.0.1           # via -r requirements.in, flask
+aiofiles==0.5.0
+    # via -r requirements.in
+args==0.1.0
+    # via clint
+certifi==2020.4.5.1
+    # via requests
+cffi==1.14.0
+    # via cryptography
+chardet==3.0.4
+    # via requests
+cheroot==8.3.0
+    # via -r requirements.in
+click==7.1.2
+    # via
+    #   flask
+    #   uvicorn
+clint==0.5.1
+    # via -r requirements.in
+cryptography==3.3.2
+    # via pyopenssl
+fastapi==0.54.2
+    # via -r requirements.in
+flask==1.1.2
+    # via -r requirements.in
+h11==0.9.0
+    # via uvicorn
+idna==2.9
+    # via requests
+itsdangerous==1.1.0
+    # via flask
+jaraco.functools==3.0.1
+    # via cheroot
+jinja2==2.11.2
+    # via flask
+markupsafe==1.1.1
+    # via jinja2
+more-itertools==8.3.0
+    # via
+    #   cheroot
+    #   jaraco.functools
+psutil==5.7.0
+    # via -r requirements.in
+pycparser==2.20
+    # via cffi
+pydantic==1.5.1
+    # via fastapi
+pyopenssl==19.1.0
+    # via -r requirements.in
+python-multipart==0.0.5
+    # via -r requirements.in
+requests==2.23.0
+    # via -r requirements.in
+six==1.14.0
+    # via
+    #   cheroot
+    #   cryptography
+    #   pyopenssl
+    #   python-multipart
+starlette==0.13.2
+    # via fastapi
+urllib3==1.25.9
+    # via requests
+uvicorn==0.12.3
+    # via -r requirements.in
+werkzeug==1.0.1
+    # via
+    #   -r requirements.in
+    #   flask
